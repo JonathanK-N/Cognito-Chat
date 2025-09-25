@@ -1,1 +1,10 @@
-{\r\n  \"build\": {\r\n    \"builder\": \"NIXPACKS\"\r\n  },\r\n  \"deploy\": {\r\n    \"healthcheckPath\": \"/health\",\r\n    \"healthcheckTimeout\": 60,\r\n    \"restartPolicyType\": \"ON_FAILURE\"\r\n  }\r\n}
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 60,
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
