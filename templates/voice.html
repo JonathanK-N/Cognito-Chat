@@ -536,40 +536,40 @@
                 const speak = () => {
                     const utterance = new SpeechSynthesisUtterance(text);
                     
-                    // Sélectionner la meilleure voix française disponible
+                    // Utiliser la voix sélectionnée par l'utilisateur ou la meilleure disponible
                     const voices = speechSynthesis.getVoices();
-                    
-                    // Priorité aux voix de qualité supérieure
-                    const preferredVoices = [
-                        'Microsoft Hortense - French (France)',
-                        'Microsoft Julie - French (France)', 
-                        'Microsoft Paul - French (France)',
-                        'Google français',
-                        'Amelie',
-                        'Thomas',
-                        'Virginie'
-                    ];
-                    
                     let selectedVoice = null;
                     
-                    // Chercher d'abord les voix préférées
-                    for (const preferred of preferredVoices) {
-                        selectedVoice = voices.find(voice => 
-                            voice.name.includes(preferred) || voice.name === preferred
-                        );
-                        if (selectedVoice) break;
-                    }
-                    
-                    // Sinon, chercher toute voix française de qualité
-                    if (!selectedVoice) {
-                        selectedVoice = voices.find(voice => 
-                            voice.lang === 'fr-FR' && !voice.name.includes('eSpeak')
-                        ) || voices.find(voice => voice.lang.startsWith('fr'));
+                    if (selectedVoiceIndex !== null && availableVoices[selectedVoiceIndex]) {
+                        selectedVoice = availableVoices[selectedVoiceIndex];
+                    } else {
+                        // Sélection automatique de la meilleure voix
+                        const preferredVoices = [
+                            'Microsoft Hortense',
+                            'Microsoft Julie', 
+                            'Microsoft Paul',
+                            'Google français',
+                            'Amelie',
+                            'Thomas'
+                        ];
+                        
+                        for (const preferred of preferredVoices) {
+                            selectedVoice = voices.find(voice => 
+                                voice.name.includes(preferred)
+                            );
+                            if (selectedVoice) break;
+                        }
+                        
+                        if (!selectedVoice) {
+                            selectedVoice = voices.find(voice => 
+                                voice.lang === 'fr-FR' && !voice.name.includes('eSpeak')
+                            );
+                        }
                     }
                     
                     if (selectedVoice) {
                         utterance.voice = selectedVoice;
-                        console.log('Voix sélectionnée:', selectedVoice.name);
+                        console.log('Voix utilisée:', selectedVoice.name);
                     }
                     
                     utterance.lang = 'fr-FR';
@@ -650,11 +650,35 @@
         voiceButton.addEventListener('click', toggleListening);
         autoSpeakBtn.addEventListener('click', toggleAutoSpeak);
         testAudioBtn.addEventListener('click', testAudio);
+        voiceSelector.addEventListener('change', (e) => {
+            selectedVoiceIndex = e.target.value ? parseInt(e.target.value) : null;
+            localStorage.setItem('selectedVoice', selectedVoiceIndex);
+        });
         clearBtn.addEventListener('click', clearTranscript);
         
         // Initialiser
         initSpeechRecognition();
         autoSpeakBtn.classList.add('active');
+        
+        // Initialiser les voix
+        if (speechSynthesis.getVoices().length === 0) {
+            speechSynthesis.onvoiceschanged = () => {
+                populateVoiceSelector();
+                // Restaurer la voix sauvegardée
+                const savedVoice = localStorage.getItem('selectedVoice');
+                if (savedVoice && savedVoice !== 'null') {
+                    selectedVoiceIndex = parseInt(savedVoice);
+                    voiceSelector.value = savedVoice;
+                }
+            };
+        } else {
+            populateVoiceSelector();
+            const savedVoice = localStorage.getItem('selectedVoice');
+            if (savedVoice && savedVoice !== 'null') {
+                selectedVoiceIndex = parseInt(savedVoice);
+                voiceSelector.value = savedVoice;
+            }
+        }
     </script>
 </body>
 </html>
