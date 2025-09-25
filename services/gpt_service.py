@@ -56,20 +56,35 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
 def analyze_image(image_url):
     """Analyse une image avec GPT-4o Vision"""
     try:
-        response = client.chat.completions.create(
+        import requests
+        import base64
+        
+        # Télécharger l'image avec authentification Twilio
+        twilio_sid = os.getenv('TWILIO_ACCOUNT_SID')
+        twilio_token = os.getenv('TWILIO_AUTH_TOKEN')
+        
+        response = requests.get(image_url, auth=(twilio_sid, twilio_token))
+        response.raise_for_status()
+        
+        # Encoder l'image en base64
+        image_base64 = base64.b64encode(response.content).decode('utf-8')
+        image_type = response.headers.get('content-type', 'image/jpeg')
+        
+        # Analyser avec GPT-4o Vision
+        gpt_response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Décris cette image et réponds à toute question qu'elle pourrait soulever."},
-                        {"type": "image_url", "image_url": {"url": image_url}}
+                        {"type": "text", "text": "Décris cette image en détail et réponds à toute question qu'elle pourrait soulever."},
+                        {"type": "image_url", "image_url": {"url": f"data:{image_type};base64,{image_base64}"}}
                     ]
                 }
             ],
             max_tokens=500
         )
-        return response.choices[0].message.content.strip()
+        return gpt_response.choices[0].message.content.strip()
     except Exception as e:
         return f"Erreur analyse image: {str(e)}"
 
