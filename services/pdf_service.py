@@ -2,12 +2,18 @@ import PyPDF2
 import requests
 import tempfile
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def extract_text_from_pdf_url(pdf_url):
     """Extrait le texte d'un PDF depuis une URL"""
     try:
-        # Télécharger le PDF
-        response = requests.get(pdf_url)
+        # Télécharger le PDF avec authentification Twilio
+        twilio_sid = os.getenv('TWILIO_ACCOUNT_SID')
+        twilio_token = os.getenv('TWILIO_AUTH_TOKEN')
+        
+        response = requests.get(pdf_url, auth=(twilio_sid, twilio_token))
         response.raise_for_status()
         
         # Sauvegarder temporairement

@@ -66,6 +66,10 @@ def analyze_image(image_url):
         response = requests.get(image_url, auth=(twilio_sid, twilio_token))
         response.raise_for_status()
         
+        # Vérifier la taille de l'image (limite OpenAI: 20MB)
+        if len(response.content) > 20 * 1024 * 1024:
+            return "Image trop volumineuse. Veuillez envoyer une image plus petite."
+        
         # Encoder l'image en base64
         image_base64 = base64.b64encode(response.content).decode('utf-8')
         image_type = response.headers.get('content-type', 'image/jpeg')
