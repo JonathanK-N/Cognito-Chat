@@ -12,23 +12,22 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
         # Effectuer une recherche web si demandé
         search_context = ""
         if use_search and should_search(text):
-            # Construire une requête de recherche spécifique
-            if "premier ministre" in text.lower() and "congo" in text.lower():
-                if "rdc" in text.lower() or "démocratique" in text.lower():
-                    search_query = "premier ministre RDC République démocratique Congo 2024 actuel"
-                else:
-                    search_query = "premier ministre République Congo Brazzaville 2024 actuel"
-            else:
-                search_query = f"{text} 2024 actuel récent"
+            search_query = text
+            # Améliorer la requête pour certains cas
+            if "président" in text.lower() and "congo" in text.lower():
+                search_query = "président République démocratique Congo RDC 2024"
+            elif "premier ministre" in text.lower() and "congo" in text.lower():
+                search_query = "premier ministre RDC Congo 2024"
+            
             search_results = search_web(search_query)
             search_context = format_search_results(search_results)
         
         # Construire les messages avec l'historique
         messages = []
         
-        system_prompt = "Tu es un assistant utile qui répond de manière concise et claire. Tu dois TOUJOURS donner une réponse directe et factuelle."
+        system_prompt = "Tu es un assistant intelligent qui donne des réponses précises et utiles. Réponds toujours de manière directe et factuelle."
         if search_context:
-            system_prompt += " IMPORTANT: Utilise EXCLUSIVEMENT les informations de recherche web récentes fournies ci-dessous. Ignore tes connaissances antérieures et base ta réponse UNIQUEMENT sur ces informations récentes de 2024. Si les informations de recherche mentionnent un nom ou une fonction, utilise exactement ces informations."
+            system_prompt += " Utilise les informations de recherche récentes fournies ET tes connaissances pour donner la meilleure réponse possible. Si tu as des informations récentes, privilégie-les."
         
         messages.append({"role": "system", "content": system_prompt})
         
@@ -48,7 +47,7 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
             model="gpt-4o",
             messages=messages,
             max_tokens=max_tokens,
-            temperature=0.7
+            temperature=0.3
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
