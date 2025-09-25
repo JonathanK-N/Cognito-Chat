@@ -10,7 +10,11 @@ client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 def transcribe_audio_from_url(audio_url):
     """Transcrit un fichier audio depuis une URL"""
     try:
-        response = requests.get(audio_url)
+        # Authentification Twilio pour accéder aux fichiers média
+        twilio_sid = os.getenv('TWILIO_ACCOUNT_SID')
+        twilio_token = os.getenv('TWILIO_AUTH_TOKEN')
+        
+        response = requests.get(audio_url, auth=(twilio_sid, twilio_token))
         response.raise_for_status()
         
         content_type = response.headers.get('content-type', '')
