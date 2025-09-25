@@ -354,6 +354,9 @@
             <button class="control-btn" id="auto-speak-btn">
                 <i class="fas fa-volume-up"></i> Réponse vocale
             </button>
+            <select class="control-btn" id="voice-selector" style="background: var(--bg-secondary); color: var(--text-primary); border: 1px solid #333; padding: 12px 16px;">
+                <option value="">Voix par défaut</option>
+            </select>
             <button class="control-btn" id="test-audio-btn">
                 <i class="fas fa-play"></i> Test Audio
             </button>
@@ -370,7 +373,11 @@
         const transcript = document.getElementById('transcript');
         const autoSpeakBtn = document.getElementById('auto-speak-btn');
         const testAudioBtn = document.getElementById('test-audio-btn');
+        const voiceSelector = document.getElementById('voice-selector');
         const clearBtn = document.getElementById('clear-btn');
+        
+        let availableVoices = [];
+        let selectedVoiceIndex = null;
         
         let recognition = null;
         let isListening = false;
@@ -529,20 +536,46 @@
                 const speak = () => {
                     const utterance = new SpeechSynthesisUtterance(text);
                     
-                    // Chercher une voix française
+                    // Sélectionner la meilleure voix française disponible
                     const voices = speechSynthesis.getVoices();
-                    const frenchVoice = voices.find(voice => 
-                        voice.lang.startsWith('fr') || voice.name.includes('French')
-                    );
                     
-                    if (frenchVoice) {
-                        utterance.voice = frenchVoice;
+                    // Priorité aux voix de qualité supérieure
+                    const preferredVoices = [
+                        'Microsoft Hortense - French (France)',
+                        'Microsoft Julie - French (France)', 
+                        'Microsoft Paul - French (France)',
+                        'Google français',
+                        'Amelie',
+                        'Thomas',
+                        'Virginie'
+                    ];
+                    
+                    let selectedVoice = null;
+                    
+                    // Chercher d'abord les voix préférées
+                    for (const preferred of preferredVoices) {
+                        selectedVoice = voices.find(voice => 
+                            voice.name.includes(preferred) || voice.name === preferred
+                        );
+                        if (selectedVoice) break;
+                    }
+                    
+                    // Sinon, chercher toute voix française de qualité
+                    if (!selectedVoice) {
+                        selectedVoice = voices.find(voice => 
+                            voice.lang === 'fr-FR' && !voice.name.includes('eSpeak')
+                        ) || voices.find(voice => voice.lang.startsWith('fr'));
+                    }
+                    
+                    if (selectedVoice) {
+                        utterance.voice = selectedVoice;
+                        console.log('Voix sélectionnée:', selectedVoice.name);
                     }
                     
                     utterance.lang = 'fr-FR';
-                    utterance.rate = 0.8;
-                    utterance.pitch = 1;
-                    utterance.volume = 1;
+                    utterance.rate = 0.9;  // Vitesse naturelle
+                    utterance.pitch = 1.0; // Ton naturel
+                    utterance.volume = 0.9; // Volume optimal
                     
                     utterance.onstart = () => {
                         console.log('Début de la synthèse vocale');
@@ -593,8 +626,24 @@
             transcript.innerHTML = 'Vos conversations apparaîtront ici...';
         }
         
+        function populateVoiceSelector() {
+            availableVoices = speechSynthesis.getVoices();
+            const frenchVoices = availableVoices.filter(voice => 
+                voice.lang.startsWith('fr') && !voice.name.includes('eSpeak')
+            );
+            
+            voiceSelector.innerHTML = '<option value="">Voix automatique</option>';
+            
+            frenchVoices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                voiceSelector.appendChild(option);
+            });
+        }
+        
         function testAudio() {
-            speakText('Bonjour, je suis votre assistant Cognito. Le son fonctionne correctement.');
+            speakText('Bonjour, je suis votre assistant Cognito. Cette voix vous convient-elle ?');
         }
         
         // Event listeners
