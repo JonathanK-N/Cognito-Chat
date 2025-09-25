@@ -38,24 +38,21 @@ def whatsapp_webhook():
         
         # Traitement selon le type de contenu
         if media_url:
-            print(f"DEBUG: Media URL: {media_url}")
-            print(f"DEBUG: Content Type: {media_content_type}")
             if 'image' in media_content_type:
                 message_type = "image"
-                print("DEBUG: Analysing image...")
-                response_text = analyze_image(media_url)
-                print(f"DEBUG: Image analysis result: {response_text[:100]}...")
-                
-                # Fallback si l'analyse échoue
-                if not response_text or "Erreur" in response_text or "Impossible" in response_text:
-                    response_text = "J'ai reçu votre image mais je ne peux pas l'analyser pour le moment. Réessayez plus tard."
+                try:
+                    response_text = analyze_image(media_url)
+                    if not response_text or len(response_text.strip()) < 10:
+                        response_text = "Image reçue mais analyse impossible."
+                except Exception as e:
+                    response_text = f"Erreur analyse image: {str(e)[:50]}"
             elif 'pdf' in media_content_type or 'application' in media_content_type:
                 message_type = "pdf"
                 pdf_text = extract_text_from_pdf_url(media_url)
-                if pdf_text and not pdf_text.startswith("Erreur"):
-                    response_text = get_gpt_response(f"Analyse ce document PDF:\n\n{pdf_text}", conversation_history=conversation_history)
+                if pdf_text and not pdf_text.startswith("Erreur") and len(pdf_text.strip()) > 20:
+                    response_text = get_gpt_response(f"Résume ce document PDF:\n\n{pdf_text[:3000]}", conversation_history=conversation_history, use_search=False)
                 else:
-                    response_text = pdf_text
+                    response_text = f"Impossible d'extraire le texte du PDF. Erreur: {pdf_text[:100] if pdf_text else 'Fichier vide'}"
             elif 'audio' in media_content_type:
                 message_type = "audio"
                 transcription = transcribe_audio_from_url(media_url)
