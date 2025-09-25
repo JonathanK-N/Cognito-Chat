@@ -352,9 +352,16 @@
                     addToTranscript(`Assistant: ${data.response}`, 'bot');
                     
                     if (autoSpeak) {
+                        console.log('AutoSpeak activé, réponse:', data.response.substring(0, 50));
+                        // Arrêter l'écoute avant de parler
+                        if (isListening) {
+                            recognition.stop();
+                            isListening = false;
+                        }
                         speakText(data.response);
                     } else {
                         statusText.textContent = 'Réponse reçue. Cliquez pour continuer.';
+                        resetVoiceButton();
                     }
                 } else {
                     addToTranscript(`Erreur: ${data.error}`, 'error');
@@ -421,9 +428,12 @@
                         console.log('Fin de la synthèse vocale');
                         isSpeaking = false;
                         resetVoiceButton();
-                        if (isListening) {
-                            setTimeout(() => startListening(), 500);
-                        }
+                        // Redémarrer l'écoute automatiquement
+                        setTimeout(() => {
+                            if (!isListening) {
+                                startListening();
+                            }
+                        }, 1000);
                     };
                     
                     utterance.onerror = (event) => {
