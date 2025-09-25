@@ -233,6 +233,9 @@
             <button class="control-btn" id="auto-speak-btn">
                 <i class="fas fa-volume-up"></i> Réponse vocale
             </button>
+            <button class="control-btn" id="test-audio-btn">
+                <i class="fas fa-play"></i> Test Audio
+            </button>
             <button class="control-btn" id="clear-btn">
                 <i class="fas fa-trash"></i> Effacer
             </button>
@@ -245,6 +248,7 @@
         const statusText = document.getElementById('status-text');
         const transcript = document.getElementById('transcript');
         const autoSpeakBtn = document.getElementById('auto-speak-btn');
+        const testAudioBtn = document.getElementById('test-audio-btn');
         const clearBtn = document.getElementById('clear-btn');
         
         let recognition = null;
@@ -389,20 +393,57 @@
                 statusText.textContent = 'Assistant en train de parler...';
                 
                 speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(text);
-                utterance.lang = 'fr-FR';
-                utterance.rate = 0.9;
-                utterance.pitch = 1;
                 
-                utterance.onend = () => {
-                    isSpeaking = false;
-                    resetVoiceButton();
-                    if (isListening) {
-                        startListening();
+                // Attendre que les voix soient chargées
+                const speak = () => {
+                    const utterance = new SpeechSynthesisUtterance(text);
+                    
+                    // Chercher une voix française
+                    const voices = speechSynthesis.getVoices();
+                    const frenchVoice = voices.find(voice => 
+                        voice.lang.startsWith('fr') || voice.name.includes('French')
+                    );
+                    
+                    if (frenchVoice) {
+                        utterance.voice = frenchVoice;
                     }
+                    
+                    utterance.lang = 'fr-FR';
+                    utterance.rate = 0.8;
+                    utterance.pitch = 1;
+                    utterance.volume = 1;
+                    
+                    utterance.onstart = () => {
+                        console.log('Début de la synthèse vocale');
+                    };
+                    
+                    utterance.onend = () => {
+                        console.log('Fin de la synthèse vocale');
+                        isSpeaking = false;
+                        resetVoiceButton();
+                        if (isListening) {
+                            setTimeout(() => startListening(), 500);
+                        }
+                    };
+                    
+                    utterance.onerror = (event) => {
+                        console.error('Erreur synthèse vocale:', event.error);
+                        isSpeaking = false;
+                        resetVoiceButton();
+                    };
+                    
+                    speechSynthesis.speak(utterance);
                 };
                 
-                speechSynthesis.speak(utterance);
+                // Si les voix ne sont pas encore chargées
+                if (speechSynthesis.getVoices().length === 0) {
+                    speechSynthesis.onvoiceschanged = () => {
+                        speak();
+                        speechSynthesis.onvoiceschanged = null;
+                    };
+                } else {
+                    speak();
+                }
             }
         }
         
@@ -418,9 +459,14 @@
             transcript.innerHTML = 'Vos conversations apparaîtront ici...';
         }
         
+        function testAudio() {
+            speakText('Bonjour, je suis votre assistant Cognito. Le son fonctionne correctement.');
+        }
+        
         // Event listeners
         voiceButton.addEventListener('click', toggleListening);
         autoSpeakBtn.addEventListener('click', toggleAutoSpeak);
+        testAudioBtn.addEventListener('click', testAudio);
         clearBtn.addEventListener('click', clearTranscript);
         
         // Initialiser
