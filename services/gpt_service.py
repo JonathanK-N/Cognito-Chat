@@ -63,16 +63,18 @@ def analyze_image(image_url):
         twilio_sid = os.getenv('TWILIO_ACCOUNT_SID')
         twilio_token = os.getenv('TWILIO_AUTH_TOKEN')
         
-        response = requests.get(image_url, auth=(twilio_sid, twilio_token))
+        if not twilio_sid or not twilio_token:
+            return "Configuration Twilio manquante pour analyser l'image."
+        
+        response = requests.get(image_url, auth=(twilio_sid, twilio_token), timeout=30)
         response.raise_for_status()
         
-        # Vérifier la taille de l'image (limite OpenAI: 20MB)
-        if len(response.content) > 20 * 1024 * 1024:
-            return "Image trop volumineuse. Veuillez envoyer une image plus petite."
+        # Vérifier la taille (limite: 5MB pour éviter les timeouts)
+        if len(response.content) > 5 * 1024 * 1024:
+            return "Image trop volumineuse. Veuillez envoyer une image plus petite (max 5MB)."
         
-        # Encoder l'image en base64
+        # Encoder en base64
         image_base64 = base64.b64encode(response.content).decode('utf-8')
-        image_type = response.headers.get('content-type', 'image/jpeg')
         
         # Analyser avec GPT-4o Vision
         gpt_response = client.chat.completions.create(
@@ -81,16 +83,19 @@ def analyze_image(image_url):
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": "Décris cette image en détail et réponds à toute question qu'elle pourrait soulever."},
-                        {"type": "image_url", "image_url": {"url": f"data:{image_type};base64,{image_base64}"}}
+                        {"type": "text", "text": "Décris cette image."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
                     ]
                 }
             ],
-            max_tokens=500
+            max_tokens=300,
+            timeout=30
         )
         return gpt_response.choices[0].message.content.strip()
+    except requests.exceptions.Timeout:
+        return "Timeout lors de l'analyse de l'image. Réessayez."
     except Exception as e:
-        return f"Erreur analyse image: {str(e)}"
+        return f"Impossible d'analyser l'image: {str(e)[:100]}"
 
 def should_search(text):
     """Détermine si une recherche web est nécessaire"""
