@@ -69,8 +69,27 @@ def chat(session_id):
                 # Traitement selon le type de fichier
                 if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
                     message_type = "image"
-                    # Pour les images, on aurait besoin d'une URL publique
-                    response_text = "Analyse d'image non disponible en local. Utilisez WhatsApp."
+                    # Analyser l'image locale
+                    import base64
+                    with open(filepath, 'rb') as img_file:
+                        image_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+                    
+                    from services.gpt_service import client
+                    gpt_response = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": "Décris cette image en détail."},
+                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                                ]
+                            }
+                        ],
+                        max_tokens=300
+                    )
+                    response_text = gpt_response.choices[0].message.content.strip()
+                    question = f"Image: {filename}" + (f" + Question: {message}" if message else "")
                     
                 elif filename.lower().endswith('.pdf'):
                     message_type = "pdf"
