@@ -86,7 +86,7 @@ def chat(session_id):
                                 ]
                             }
                         ],
-                        max_tokens=300
+                        max_tokens=800
                     )
                     response_text = gpt_response.choices[0].message.content.strip()
                     question = f"Image: {filename}" + (f" + Question: {message}" if message else "")
@@ -98,7 +98,7 @@ def chat(session_id):
                         prompt = f"Analyse ce document PDF:\n\n{pdf_text}"
                         if message:
                             prompt += f"\n\nQuestion spécifique: {message}"
-                        response_text = get_gpt_response(prompt, conversation_history=conversation_history)
+                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
                         question = f"PDF: {filename}" + (f" + Question: {message}" if message else "")
                     else:
                         response_text = pdf_text
@@ -110,7 +110,7 @@ def chat(session_id):
                         prompt = f"Réponds à cette transcription audio: {transcription}"
                         if message:
                             prompt += f"\n\nContext/Question: {message}"
-                        response_text = get_gpt_response(prompt, conversation_history=conversation_history)
+                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
                         question = f"Audio: {filename}" + (f" + Question: {message}" if message else "")
                     else:
                         response_text = transcription
@@ -121,7 +121,7 @@ def chat(session_id):
                     os.unlink(filepath)
                     
         elif message:
-            response_text = get_gpt_response(message, conversation_history=conversation_history)
+            response_text = get_gpt_response(message, max_tokens=1500, conversation_history=conversation_history)
         else:
             response_text = "Veuillez saisir un message ou uploader un fichier."
         
