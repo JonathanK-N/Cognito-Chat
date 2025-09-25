@@ -7,10 +7,5 @@ cmds = [
     '. /opt/venv/bin/activate && pip install -r requirements.txt'
 ]
 
-[phases.build]
-cmds = [
-    'echo "Build completed"'
-]
-
 [start]
-cmd = 'chmod +x start.sh && ./start.sh'
+cmd = '. /opt/venv/bin/activate && python app.py'

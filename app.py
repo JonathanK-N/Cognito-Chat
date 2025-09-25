@@ -13,13 +13,11 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'CognitoChat2024!SecureFlaskKey#WhatsAppBot$RandomString789')
 
-# Initialiser la base de données à la première requête
-@app.before_first_request
-def initialize_database():
-    try:
-        init_db()
-    except Exception as e:
-        print(f"Erreur DB: {e}")
+# Initialiser la base de données
+try:
+    init_db()
+except Exception as e:
+    print(f"Erreur DB: {e}")
 
 # Enregistrer les blueprints
 app.register_blueprint(auth_bp)
