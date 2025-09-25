@@ -394,6 +394,18 @@
             color: var(--text-primary);
         }
         
+        .attach-btn.recording {
+            background: #ff4444;
+            color: white;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
         .message-input {
             flex: 1;
             border: none;
@@ -619,6 +631,9 @@
                         <button type="button" class="attach-btn" id="attach-btn">
                             <i class="fas fa-paperclip"></i>
                         </button>
+                        <button type="button" class="attach-btn" id="voice-btn">
+                            <i class="fas fa-microphone"></i>
+                        </button>
                         <textarea 
                             class="message-input" 
                             id="message-input" 
@@ -657,9 +672,13 @@
         const typingIndicator = document.getElementById('typing-indicator');
         const themeToggle = document.getElementById('theme-toggle');
         const themeIcon = document.getElementById('theme-icon');
+        const voiceBtn = document.getElementById('voice-btn');
         
         let selectedFile = null;
         const currentSession = '{{ current_session }}';
+        let recognition = null;
+        let isRecording = false;
+        let speechSynthesis = window.speechSynthesis;
         
         // Theme management
         function initTheme() {
@@ -779,6 +798,8 @@
                 
                 if (data.success) {
                     addMessage(data.response, 'bot');
+                    // Lire la réponse à voix haute
+                    speakText(data.response);
                 } else {
                     addMessage(`Erreur: ${data.error}`, 'bot');
                 }
@@ -856,6 +877,65 @@
             typingIndicator.classList.toggle('show', show);
         }
         
+        // Fonctions vocales
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'fr-FR';
+                
+                recognition.onstart = () => {
+                    isRecording = true;
+                    voiceBtn.classList.add('recording');
+                    voiceBtn.innerHTML = '<i class="fas fa-stop"></i>';
+                };
+                
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    messageInput.value = transcript;
+                    messageInput.dispatchEvent(new Event('input'));
+                };
+                
+                recognition.onend = () => {
+                    isRecording = false;
+                    voiceBtn.classList.remove('recording');
+                    voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                };
+                
+                recognition.onerror = (event) => {
+                    console.error('Erreur reconnaissance vocale:', event.error);
+                    isRecording = false;
+                    voiceBtn.classList.remove('recording');
+                    voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                };
+            } else {
+                voiceBtn.style.display = 'none';
+            }
+        }
+        
+        function toggleVoiceRecording() {
+            if (!recognition) return;
+            
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+        
+        function speakText(text) {
+            if (speechSynthesis) {
+                speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'fr-FR';
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                speechSynthesis.speak(utterance);
+            }
+        }
+        
         // Keyboard shortcuts
         messageInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -866,6 +946,7 @@
         
         // Event listeners
         themeToggle.addEventListener('click', toggleTheme);
+        voiceBtn.addEventListener('click', toggleVoiceRecording);
         
         // Configure Marked.js
         marked.setOptions({
@@ -875,6 +956,7 @@
         
         // Initialize
         initTheme();
+        initSpeechRecognition();
         messageInput.focus();
         chatContainer.scrollTop = chatContainer.scrollHeight;
         
