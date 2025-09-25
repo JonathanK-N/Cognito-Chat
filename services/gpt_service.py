@@ -77,6 +77,7 @@ def analyze_image(image_url):
         image_base64 = base64.b64encode(response.content).decode('utf-8')
         
         # Analyser avec GPT-4o Vision
+        print(f"DEBUG: Sending to OpenAI, image size: {len(image_base64)} chars")
         gpt_response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -88,10 +89,11 @@ def analyze_image(image_url):
                     ]
                 }
             ],
-            max_tokens=300,
-            timeout=30
+            max_tokens=200
         )
-        return gpt_response.choices[0].message.content.strip()
+        result = gpt_response.choices[0].message.content.strip()
+        print(f"DEBUG: OpenAI response: {result[:50]}...")
+        return result
     except requests.exceptions.Timeout:
         return "Timeout lors de l'analyse de l'image. Réessayez."
     except Exception as e:

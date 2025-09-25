@@ -38,9 +38,17 @@ def whatsapp_webhook():
         
         # Traitement selon le type de contenu
         if media_url:
+            print(f"DEBUG: Media URL: {media_url}")
+            print(f"DEBUG: Content Type: {media_content_type}")
             if 'image' in media_content_type:
                 message_type = "image"
+                print("DEBUG: Analysing image...")
                 response_text = analyze_image(media_url)
+                print(f"DEBUG: Image analysis result: {response_text[:100]}...")
+                
+                # Fallback si l'analyse échoue
+                if not response_text or "Erreur" in response_text or "Impossible" in response_text:
+                    response_text = "J'ai reçu votre image mais je ne peux pas l'analyser pour le moment. Réessayez plus tard."
             elif 'pdf' in media_content_type or 'application' in media_content_type:
                 message_type = "pdf"
                 pdf_text = extract_text_from_pdf_url(media_url)
