@@ -690,6 +690,23 @@
             if (file) {
                 selectedFile = file;
                 fileName.textContent = file.name;
+                
+                // Ajouter prévisualisation pour les images
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        let preview = document.getElementById('image-preview');
+                        if (!preview) {
+                            preview = document.createElement('img');
+                            preview.id = 'image-preview';
+                            preview.style.cssText = 'width: 60px; height: 60px; object-fit: cover; border-radius: 8px; margin-left: 8px;';
+                            filePreview.appendChild(preview);
+                        }
+                        preview.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+                
                 filePreview.style.display = 'flex';
             }
         });
@@ -699,6 +716,12 @@
             fileInput.value = '';
             filePreview.style.display = 'none';
             fileUpload.classList.remove('show');
+            
+            // Supprimer la prévisualisation d'image
+            const preview = document.getElementById('image-preview');
+            if (preview) {
+                preview.remove();
+            }
         });
         
         // Auto-resize textarea
@@ -736,6 +759,12 @@
             filePreview.style.display = 'none';
             fileUpload.classList.remove('show');
             sendBtn.disabled = true;
+            
+            // Supprimer la prévisualisation d'image
+            const preview = document.getElementById('image-preview');
+            if (preview) {
+                preview.remove();
+            }
             
             // Show typing indicator
             showTyping(true);
