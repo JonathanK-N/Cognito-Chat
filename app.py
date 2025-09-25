@@ -22,6 +22,10 @@ app.register_blueprint(admin_bp)
 app.register_blueprint(whatsapp_bp)
 app.register_blueprint(web_bp)
 
+@app.route('/health')
+def health():
+    return {'status': 'ok'}, 200
+
 @app.route('/')
 def home():
     if 'user_id' in session:
