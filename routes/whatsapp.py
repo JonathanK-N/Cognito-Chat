@@ -63,7 +63,7 @@ def whatsapp_webhook():
             response_text = "Bonjour! Envoyez-moi un message texte, PDF, image ou audio."
         
         # Sauvegarder la conversation
-        save_conversation(from_number, message_type, message_body or "Fichier média", response_text)
+        save_conversation(from_number, None, from_number, message_type, message_body or "Fichier média", response_text)
         
         # Créer la réponse Twilio
         twiml_response = MessagingResponse()
