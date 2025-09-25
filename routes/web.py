@@ -154,6 +154,14 @@ def new_chat():
     session_id = create_chat_session(user_id)
     return redirect(f'/chat/{session_id}')
 
+@web_bp.route('/voice/<session_id>')
+@login_required
+def voice_chat(session_id):
+    """Page de conversation vocale"""
+    user_id = session['user_id']
+    user = get_user_by_id(user_id)
+    return render_template('voice.html', current_session=session_id, user=user)
+
 @web_bp.route('/history')
 @login_required
 def history():

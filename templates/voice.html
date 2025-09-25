@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cognito Voice - Conversation Vocale</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #1a1a1a;
+            --text-primary: #ffffff;
+            --text-secondary: #888888;
+            --accent-color: #10a37f;
+            --pulse-color: #ff4444;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .back-btn {
+            background: var(--bg-secondary);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 8px 16px;
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .back-btn:hover {
+            background: #333;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        
+        .voice-container {
+            text-align: center;
+            max-width: 600px;
+            padding: 40px;
+        }
+        
+        .voice-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(45deg, var(--accent-color), #19c37d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .voice-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 60px;
+        }
+        
+        .voice-button {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--accent-color), #19c37d);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 40px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .voice-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 20px 40px rgba(16, 163, 127, 0.3);
+        }
+        
+        .voice-button.listening {
+            background: var(--pulse-color);
+            animation: pulse-ring 2s infinite;
+        }
+        
+        .voice-button.speaking {
+            background: #ff8c00;
+            animation: speak-pulse 1s infinite;
+        }
+        
+        .voice-button i {
+            font-size: 4rem;
+            color: white;
+        }
+        
+        @keyframes pulse-ring {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 30px rgba(255, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+            }
+        }
+        
+        @keyframes speak-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .status-text {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-bottom: 20px;
+            min-height: 2rem;
+        }
+        
+        .transcript {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 100px;
+            border: 1px solid #333;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+        
+        .control-btn {
+            background: var(--bg-secondary);
+            border: 1px solid #333;
+            border-radius: 50px;
+            padding: 12px 24px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 1rem;
+        }
+        
+        .control-btn:hover {
+            background: #333;
+            transform: translateY(-2px);
+        }
+        
+        .control-btn.active {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+        
+        @media (max-width: 768px) {
+            .voice-container {
+                padding: 20px;
+            }
+            
+            .voice-title {
+                font-size: 2rem;
+            }
+            
+            .voice-button {
+                width: 150px;
+                height: 150px;
+            }
+            
+            .voice-button i {
+                font-size: 3rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/chat/{{ current_session }}" class="back-btn">
+            <i class="fas fa-arrow-left"></i> Retour au Chat
+        </a>
+        <div style="color: var(--text-secondary);">
+            <i class="fas fa-user"></i> {{ user[1] if user else 'Utilisateur' }}
+        </div>
+    </div>
+    
+    <div class="voice-container">
+        <h1 class="voice-title">Cognito Voice</h1>
+        <p class="voice-subtitle">Parlez naturellement avec votre assistant IA</p>
+        
+        <button class="voice-button" id="voice-button">
+            <i class="fas fa-microphone" id="voice-icon"></i>
+        </button>
+        
+        <div class="status-text" id="status-text">Cliquez pour commencer à parler</div>
+        
+        <div class="transcript" id="transcript">
+            Vos conversations apparaîtront ici...
+        </div>
+        
+        <div class="controls">
+            <button class="control-btn" id="auto-speak-btn">
+                <i class="fas fa-volume-up"></i> Réponse vocale
+            </button>
+            <button class="control-btn" id="clear-btn">
+                <i class="fas fa-trash"></i> Effacer
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const voiceButton = document.getElementById('voice-button');
+        const voiceIcon = document.getElementById('voice-icon');
+        const statusText = document.getElementById('status-text');
+        const transcript = document.getElementById('transcript');
+        const autoSpeakBtn = document.getElementById('auto-speak-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        
+        let recognition = null;
+        let isListening = false;
+        let isSpeaking = false;
+        let autoSpeak = true;
+        let speechSynthesis = window.speechSynthesis;
+        const currentSession = '{{ current_session }}';
+        
+        // Initialiser la reconnaissance vocale
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'fr-FR';
+                
+                recognition.onstart = () => {
+                    isListening = true;
+                    voiceButton.classList.add('listening');
+                    voiceIcon.className = 'fas fa-stop';
+                    statusText.textContent = 'Écoute en cours... Parlez maintenant';
+                };
+                
+                recognition.onresult = (event) => {
+                    let finalTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        }
+                    }
+                    
+                    if (finalTranscript) {
+                        processVoiceInput(finalTranscript);
+                    }
+                };
+                
+                recognition.onend = () => {
+                    if (isListening) {
+                        recognition.start(); // Redémarrer automatiquement
+                    }
+                };
+                
+                recognition.onerror = (event) => {
+                    console.error('Erreur reconnaissance vocale:', event.error);
+                    resetVoiceButton();
+                };
+            } else {
+                statusText.textContent = 'Reconnaissance vocale non supportée';
+                voiceButton.disabled = true;
+            }
+        }
+        
+        function toggleListening() {
+            if (!recognition) return;
+            
+            if (isListening) {
+                stopListening();
+            } else {
+                startListening();
+            }
+        }
+        
+        function startListening() {
+            if (isSpeaking) {
+                speechSynthesis.cancel();
+                isSpeaking = false;
+            }
+            recognition.start();
+        }
+        
+        function stopListening() {
+            isListening = false;
+            recognition.stop();
+            resetVoiceButton();
+        }
+        
+        function resetVoiceButton() {
+            voiceButton.classList.remove('listening', 'speaking');
+            voiceIcon.className = 'fas fa-microphone';
+            statusText.textContent = 'Cliquez pour commencer à parler';
+        }
+        
+        async function processVoiceInput(text) {
+            addToTranscript(`Vous: ${text}`, 'user');
+            statusText.textContent = 'Traitement de votre demande...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('message', text);
+                
+                const response = await fetch(`/chat/${currentSession}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addToTranscript(`Assistant: ${data.response}`, 'bot');
+                    
+                    if (autoSpeak) {
+                        speakText(data.response);
+                    } else {
+                        statusText.textContent = 'Réponse reçue. Cliquez pour continuer.';
+                    }
+                } else {
+                    addToTranscript(`Erreur: ${data.error}`, 'error');
+                    statusText.textContent = 'Erreur. Réessayez.';
+                }
+            } catch (error) {
+                addToTranscript(`Erreur de connexion: ${error.message}`, 'error');
+                statusText.textContent = 'Erreur de connexion. Réessayez.';
+            }
+        }
+        
+        function addToTranscript(text, type) {
+            const div = document.createElement('div');
+            div.style.marginBottom = '12px';
+            div.style.padding = '8px 0';
+            
+            if (type === 'user') {
+                div.style.color = '#10a37f';
+                div.style.fontWeight = '500';
+            } else if (type === 'bot') {
+                div.style.color = '#ffffff';
+            } else if (type === 'error') {
+                div.style.color = '#ff4444';
+            }
+            
+            div.textContent = text;
+            transcript.appendChild(div);
+            transcript.scrollTop = transcript.scrollHeight;
+        }
+        
+        function speakText(text) {
+            if (speechSynthesis && text) {
+                isSpeaking = true;
+                voiceButton.classList.add('speaking');
+                voiceIcon.className = 'fas fa-volume-up';
+                statusText.textContent = 'Assistant en train de parler...';
+                
+                speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'fr-FR';
+                utterance.rate = 0.9;
+                utterance.pitch = 1;
+                
+                utterance.onend = () => {
+                    isSpeaking = false;
+                    resetVoiceButton();
+                    if (isListening) {
+                        startListening();
+                    }
+                };
+                
+                speechSynthesis.speak(utterance);
+            }
+        }
+        
+        function toggleAutoSpeak() {
+            autoSpeak = !autoSpeak;
+            autoSpeakBtn.classList.toggle('active', autoSpeak);
+            autoSpeakBtn.innerHTML = autoSpeak ? 
+                '<i class="fas fa-volume-up"></i> Réponse vocale' : 
+                '<i class="fas fa-volume-mute"></i> Réponse vocale';
+        }
+        
+        function clearTranscript() {
+            transcript.innerHTML = 'Vos conversations apparaîtront ici...';
+        }
+        
+        // Event listeners
+        voiceButton.addEventListener('click', toggleListening);
+        autoSpeakBtn.addEventListener('click', toggleAutoSpeak);
+        clearBtn.addEventListener('click', clearTranscript);
+        
+        // Initialiser
+        initSpeechRecognition();
+        autoSpeakBtn.classList.add('active');
+    </script>
+</body>
+</html>
