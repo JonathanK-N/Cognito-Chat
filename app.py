@@ -14,7 +14,10 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'CognitoChat2024!SecureFlaskKey#WhatsAppBot$RandomString789')
 
 # Initialiser la base de données
-init_db()
+try:
+    init_db()
+except Exception as e:
+    print(f"Erreur lors de l'initialisation de la base de données: {e}")
 
 # Enregistrer les blueprints
 app.register_blueprint(auth_bp)
@@ -24,7 +27,14 @@ app.register_blueprint(web_bp)
 
 @app.route('/health')
 def health():
-    return {'status': 'ok'}, 200
+    try:
+        # Test simple de la base de données
+        import sqlite3
+        conn = sqlite3.connect('conversations.db')
+        conn.close()
+        return {'status': 'ok'}, 200
+    except Exception as e:
+        return {'status': 'error', 'message': str(e)}, 500
 
 @app.route('/')
 def home():
