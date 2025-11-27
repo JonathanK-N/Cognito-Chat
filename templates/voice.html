@@ -536,40 +536,19 @@
                 const speak = () => {
                     const utterance = new SpeechSynthesisUtterance(text);
                     
-                    // Utiliser la voix sélectionnée par l'utilisateur ou la meilleure disponible
+                    // Sélectionner la voix
                     const voices = speechSynthesis.getVoices();
-                    let selectedVoice = null;
                     
-                    if (selectedVoiceIndex !== null && availableVoices[selectedVoiceIndex]) {
-                        selectedVoice = availableVoices[selectedVoiceIndex];
+                    if (selectedVoiceIndex !== null && voices[selectedVoiceIndex]) {
+                        utterance.voice = voices[selectedVoiceIndex];
+                        console.log('Voix sélectionnée:', voices[selectedVoiceIndex].name);
                     } else {
-                        // Sélection automatique de la meilleure voix
-                        const preferredVoices = [
-                            'Microsoft Hortense',
-                            'Microsoft Julie', 
-                            'Microsoft Paul',
-                            'Google français',
-                            'Amelie',
-                            'Thomas'
-                        ];
-                        
-                        for (const preferred of preferredVoices) {
-                            selectedVoice = voices.find(voice => 
-                                voice.name.includes(preferred)
-                            );
-                            if (selectedVoice) break;
+                        // Voix par défaut française
+                        const frenchVoice = voices.find(voice => voice.lang.startsWith('fr'));
+                        if (frenchVoice) {
+                            utterance.voice = frenchVoice;
+                            console.log('Voix automatique:', frenchVoice.name);
                         }
-                        
-                        if (!selectedVoice) {
-                            selectedVoice = voices.find(voice => 
-                                voice.lang === 'fr-FR' && !voice.name.includes('eSpeak')
-                            );
-                        }
-                    }
-                    
-                    if (selectedVoice) {
-                        utterance.voice = selectedVoice;
-                        console.log('Voix utilisée:', selectedVoice.name);
                     }
                     
                     utterance.lang = 'fr-FR';
@@ -627,18 +606,20 @@
         }
         
         function populateVoiceSelector() {
-            availableVoices = speechSynthesis.getVoices();
-            const frenchVoices = availableVoices.filter(voice => 
-                voice.lang.startsWith('fr') && !voice.name.includes('eSpeak')
+            const voices = speechSynthesis.getVoices();
+            const frenchVoices = voices.filter(voice => 
+                voice.lang.startsWith('fr')
             );
             
             voiceSelector.innerHTML = '<option value="">Voix automatique</option>';
             
-            frenchVoices.forEach((voice, index) => {
-                const option = document.createElement('option');
-                option.value = index;
-                option.textContent = `${voice.name} (${voice.lang})`;
-                voiceSelector.appendChild(option);
+            voices.forEach((voice, index) => {
+                if (voice.lang.startsWith('fr')) {
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `${voice.name} (${voice.lang})`;
+                    voiceSelector.appendChild(option);
+                }
             });
         }
         
