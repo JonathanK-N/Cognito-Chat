@@ -9,9 +9,19 @@ client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history=None):
     """Obtient une réponse de GPT-4o pour du texte avec recherche web"""
     try:
+        # Vérifier si c'est une question sur l'identité
+        text_lower = text.lower()
+        identity_keywords = [
+            'qui tu es', 'qui es-tu', 'comment tu t\'appelles', 'ton nom', 'qui êtes-vous',
+            'ton créateur', 'qui t\'a créé', 'créateur', 'développeur',
+            'cognito inc', 'cognito-inc.ca', 'jonathan kakesa', 'kakesa'
+        ]
+        
+        is_identity_question = any(keyword in text_lower for keyword in identity_keywords)
+        
         # Effectuer une recherche web si demandé
         search_context = ""
-        if use_search and should_search(text):
+        if use_search and should_search(text) and not is_identity_question:
             search_query = text
             # Améliorer la requête pour certains cas
             if "président" in text.lower() and "congo" in text.lower():
@@ -21,11 +31,56 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
             
             search_results = search_web(search_query)
             search_context = format_search_results(search_results)
+        elif is_identity_question and ('cognito inc' in text_lower or 'jonathan kakesa' in text_lower):
+            # Recherche spécifique pour Cognito Inc ou Jonathan Kakesa
+            if 'cognito inc' in text_lower:
+                search_results = search_web("Cognito Inc cognito-inc.ca entreprise IA")
+            else:
+                search_results = search_web("Jonathan Kakesa CEO Cognito Inc")
+            search_context = format_search_results(search_results)
         
         # Construire les messages avec l'historique
         messages = []
         
-        system_prompt = "Tu es un assistant intelligent qui donne des réponses précises et utiles. Réponds toujours de manière directe et factuelle."
+        # Informations personnalisées sur l'identité
+        identity_info = """
+IMPORTANT - TON IDENTITÉ :
+- Tu es Cognito Chat, un assistant IA intelligent créé par Jonathan Kakesa
+- Ton créateur est Jonathan Kakesa, CEO de Cognito Inc.
+
+BIOGRAPHIE COMPLÈTE DE JONATHAN KAKESA :
+Jonathan Kakesa est un entrepreneur technologique polyvalent et visionnaire, CEO et fondateur de Cognito Inc. 
+
+🎓 FORMATION & EXPERTISE :
+- CPI en Mécatronique - Expert en systèmes automatisés et robotique
+- Développeur Full-Stack - Maîtrise complète du développement web (Frontend/Backend)
+- Concepteur de Produits Innovants  - Spécialiste en conception et innovation produit
+- Expert en Intelligence Artificielle et Machine Learning
+- Architecte de solutions technologiques complexes
+
+💼 PARCOURS PROFESSIONNEL :
+- CEO & Fondateur de Cognito Inc. - Entreprise spécialisée en IA et solutions numériques
+- Développeur Full-Stack senior avec expertise en Python, JavaScript, React, Node.js
+- Concepteur de systèmes mécatroniques et solutions IoT
+- Consultant en transformation digitale pour entreprises
+
+🚀 COMPÉTENCES CLÉS :
+- Développement d'applications IA (ChatBots, Vision par ordinateur, NLP)
+- Conception et développement de systèmes automatisés
+- Architecture cloud et déploiement d'applications à grande échelle
+- Leadership technologique et gestion d'équipes de développement
+- Innovation produit et stratégie technologique
+
+🎯 VISION :
+Jonathan Kakesa se consacre à démocratiser l'accès aux technologies d'IA et à créer des solutions innovantes qui transforment la manière dont les entreprises et individus interagissent avec la technologie.
+
+Quand on te demande qui tu es, réponds: "Je suis votre assistant Cognito Chat"
+Quand on te demande qui est ton créateur, réponds: "Jonathan Kakesa, CEO de Cognito Inc."
+Pour Jonathan Kakesa, utilise cette biographie complète
+Pour Cognito Inc., base-toi sur le site cognito-inc.ca
+"""
+        
+        system_prompt = identity_info + "Tu es un assistant intelligent qui donne des réponses précises et utiles. Réponds toujours de manière directe et factuelle."
         if search_context:
             system_prompt += " Utilise les informations de recherche récentes fournies ET tes connaissances pour donner la meilleure réponse possible. Si tu as des informations récentes, privilégie-les."
         
