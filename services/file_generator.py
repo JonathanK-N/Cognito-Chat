@@ -5,6 +5,84 @@ import io
 import re
 
 
+def sanitize_for_pdf(text):
+    """Remplace les caractères Unicode non supportés par Helvetica par leurs équivalents ASCII"""
+    replacements = {
+        '\u2014': '-',   # em dash —
+        '\u2013': '-',   # en dash –
+        '\u2012': '-',   # figure dash
+        '\u2015': '-',   # horizontal bar
+        '\u2018': "'",   # ' guillemet simple gauche
+        '\u2019': "'",   # ' guillemet simple droit
+        '\u201a': ',',   # ‚
+        '\u201b': "'",   # ‛
+        '\u201c': '"',   # " guillemet double gauche
+        '\u201d': '"',   # " guillemet double droit
+        '\u201e': '"',   # „
+        '\u201f': '"',   # ‟
+        '\u00ab': '<<',  # «
+        '\u00bb': '>>',  # »
+        '\u2026': '...', # … ellipse
+        '\u00a0': ' ',   # espace insécable
+        '\u2022': '-',   # • puce
+        '\u25cf': '-',   # ● cercle plein
+        '\u2192': '->',  # →
+        '\u2190': '<-',  # ←
+        '\u2665': '<3',  # ♥
+        '\u00b7': '-',   # ·
+        '\u00d7': 'x',   # ×
+        '\u00f7': '/',   # ÷
+        '\u00ae': '(R)', # ®
+        '\u00a9': '(C)', # ©
+        '\u2122': '(TM)',# ™
+        '\u20ac': 'EUR', # €
+        '\u00e0': 'a',   # à
+        '\u00e2': 'a',   # â
+        '\u00e4': 'a',   # ä
+        '\u00e7': 'c',   # ç
+        '\u00e8': 'e',   # è
+        '\u00e9': 'e',   # é
+        '\u00ea': 'e',   # ê
+        '\u00eb': 'e',   # ë
+        '\u00ee': 'i',   # î
+        '\u00ef': 'i',   # ï
+        '\u00f4': 'o',   # ô
+        '\u00f6': 'o',   # ö
+        '\u00f9': 'u',   # ù
+        '\u00fb': 'u',   # û
+        '\u00fc': 'u',   # ü
+        '\u00ff': 'y',   # ÿ
+        '\u00c0': 'A',   # À
+        '\u00c2': 'A',   # Â
+        '\u00c7': 'C',   # Ç
+        '\u00c8': 'E',   # È
+        '\u00c9': 'E',   # É
+        '\u00ca': 'E',   # Ê
+        '\u00ce': 'I',   # Î
+        '\u00d4': 'O',   # Ô
+        '\u00d9': 'U',   # Ù
+        '\u00db': 'U',   # Û
+        '\u00dc': 'U',   # Ü
+        '\u0153': 'oe',  # œ
+        '\u0152': 'OE',  # Œ
+        '\u00e6': 'ae',  # æ
+        '\u00c6': 'AE',  # Æ
+        '\u00df': 'ss',  # ß
+        '\u00f1': 'n',   # ñ
+        '\u00e1': 'a',   # á
+        '\u00e3': 'a',   # ã
+        '\u00e5': 'a',   # å
+        '\u00ed': 'i',   # í
+        '\u00f3': 'o',   # ó
+        '\u00fa': 'u',   # ú
+        '\u00fd': 'y',   # ý
+    }
+    for char, replacement in replacements.items():
+        text = text.replace(char, replacement)
+    # Remplacer tout caractère restant hors ASCII par '?'
+    text = text.encode('ascii', errors='replace').decode('ascii')
+    return text
+
 def markdown_to_plain(text):
     """Convertit du markdown en texte propre pour les fichiers générés"""
     # Supprimer les blocs de code (garder le contenu)
@@ -18,9 +96,9 @@ def markdown_to_plain(text):
     # Liens
     text = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', text)
     # Listes
-    text = re.sub(r'^\s*[-*+]\s+', '• ', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*[-*+]\s+', '- ', text, flags=re.MULTILINE)
     text = re.sub(r'^\s*\d+\.\s+', '', text, flags=re.MULTILINE)
-    return text.strip()
+    return sanitize_for_pdf(text.strip())
 
 
 def parse_sections(content):
