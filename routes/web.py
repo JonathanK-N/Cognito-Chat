@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, session
 import os
 from werkzeug.utils import secure_filename
-from services.gpt_service import get_gpt_response, analyze_image
+from services.gpt_service import get_gpt_response, analyze_image, generate_image, should_generate_image
 from services.pdf_service import extract_text_from_pdf
 from services.whisper_service import transcribe_audio
 from services.tts_service import text_to_speech
@@ -107,7 +107,15 @@ def chat(session_id):
                     os.unlink(filepath)
                     
         elif message:
-            response_text = get_gpt_response(message, max_tokens=1500, conversation_history=conversation_history)
+            if should_generate_image(message):
+                message_type = "image_generated"
+                image_url = generate_image(message)
+                if image_url:
+                    response_text = f"__IMAGE_GENERATED__:{image_url}"
+                else:
+                    response_text = "La génération d'image a échoué. Veuillez réessayer avec une description plus précise."
+            else:
+                response_text = get_gpt_response(message, max_tokens=1500, conversation_history=conversation_history)
         else:
             response_text = "Veuillez saisir un message ou uploader un fichier."
         
@@ -120,10 +128,17 @@ def chat(session_id):
             title = question[:50] + "..." if len(question) > 50 else question
             update_session_title(session_id, title)
         
+        # Extraire l'URL si image générée
+        image_url_out = None
+        if response_text.startswith('__IMAGE_GENERATED__:'):
+            image_url_out = response_text.split(':', 1)[1]
+            response_text = f"Voici l'image générée pour : *{message}*"
+
         return jsonify({
             'success': True,
             'response': response_text,
-            'type': message_type
+            'type': message_type,
+            'image_url': image_url_out
         })
         
     except Exception as e:

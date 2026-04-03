@@ -37,15 +37,17 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
 
             "RÈGLES DE COMPORTEMENT IMPORTANTES :\n"
             "1. Ne dis JAMAIS que tu ne peux pas faire quelque chose quand tu peux fournir une solution équivalente ou alternative utile.\n"
-            "2. Si on te demande de créer un fichier Excel, CSV, Word, PDF ou tout autre fichier : "
+            "2. Si on te demande de générer ou créer une image : dis simplement que tu vas la générer — "
+            "le système s'occupe automatiquement de l'appel DALL-E, ne refuse jamais une demande d'image.\n"
+            "3. Si on te demande de créer un fichier Excel, CSV, Word, PDF ou tout autre fichier : "
             "génère immédiatement les données sous forme de tableau Markdown bien structuré, "
             "puis fournis le contenu CSV prêt à copier-coller, "
             "et si pertinent, propose un code Python (openpyxl/pandas) pour générer le fichier exact.\n"
-            "3. Si on te demande du code, génère-le directement et complètement — ne demande pas de confirmation.\n"
-            "4. Si on te demande de rédiger un document (contrat, lettre, rapport, CV, plan) : rédige-le entièrement et immédiatement.\n"
-            "5. Sois proactif : anticipe ce dont l'utilisateur a besoin et fournis-le sans attendre.\n"
-            "6. Réponds dans la langue de l'utilisateur (français, anglais, lingala, swahili, etc.).\n"
-            "7. Sois direct, précis et utile. N'ajoute pas de mise en garde inutile."
+            "4. Si on te demande du code, génère-le directement et complètement — ne demande pas de confirmation.\n"
+            "5. Si on te demande de rédiger un document (contrat, lettre, rapport, CV, plan) : rédige-le entièrement et immédiatement.\n"
+            "6. Sois proactif : anticipe ce dont l'utilisateur a besoin et fournis-le sans attendre.\n"
+            "7. Réponds dans la langue de l'utilisateur (français, anglais, lingala, swahili, etc.).\n"
+            "8. Sois direct, précis et utile. N'ajoute pas de mise en garde inutile."
         )
         if search_context:
             system_prompt += "\n\nUtilise les informations de recherche récentes fournies ET tes connaissances pour donner la meilleure réponse possible. Si tu as des informations récentes, privilégie-les."
@@ -73,6 +75,36 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
         return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Erreur GPT: {str(e)}"
+
+def generate_image(prompt):
+    """Génère une image avec DALL-E 3 et retourne l'URL"""
+    try:
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1
+        )
+        return response.data[0].url
+    except Exception as e:
+        return None
+
+def should_generate_image(text):
+    """Détecte si l'utilisateur demande une génération d'image"""
+    keywords = [
+        'génère', 'genere', 'générer', 'generer', 'crée', 'cree', 'créer', 'creer',
+        'dessine', 'dessiner', 'illustre', 'illustrer', 'imagine', 'imaginer',
+        'fais moi', 'fais-moi', 'montre moi', 'montre-moi',
+        'generate', 'create', 'draw', 'make', 'show me',
+        'une image', 'un dessin', 'une illustration', 'une photo', 'un tableau',
+        'an image', 'a picture', 'a photo', 'a drawing'
+    ]
+    text_lower = text.lower()
+    image_words = ['image', 'photo', 'dessin', 'illustration', 'picture', 'drawing', 'tableau', 'visuel']
+    has_action = any(k in text_lower for k in keywords)
+    has_image_word = any(w in text_lower for w in image_words)
+    return has_action and has_image_word
 
 def analyze_image_base64(image_base64, prompt="Décris cette image en détail."):
     """Analyse une image encodée en base64 avec GPT-4o Vision"""

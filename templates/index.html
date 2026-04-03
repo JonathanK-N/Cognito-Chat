@@ -1018,7 +1018,7 @@
                 const res = await fetch(`/chat/${SESSION_ID}`, { method: 'POST', body: fd });
                 const data = await res.json();
                 showTyping(false);
-                if (data.success) addMessage(data.response, 'bot');
+                if (data.success) addMessage(data.response, 'bot', data.image_url || null);
                 else addMessage(`Désolé, une erreur est survenue. Veuillez réessayer.`, 'bot');
             } catch (err) {
                 showTyping(false);
@@ -1027,7 +1027,7 @@
         });
 
         // ── ADD MESSAGE ──
-        function addMessage(text, role) {
+        function addMessage(text, role, imageUrl = null) {
             const wrap = document.createElement('div');
             wrap.className = `message ${role}`;
 
@@ -1054,6 +1054,25 @@
             if (role === 'bot') {
                 bubble.dataset.raw = text;
                 renderMarkdown(bubble, text);
+                // Image générée par DALL-E
+                if (imageUrl) {
+                    const imgWrap = document.createElement('div');
+                    imgWrap.style.cssText = 'margin-top:12px;';
+                    const img = document.createElement('img');
+                    img.src = imageUrl;
+                    img.alt = text;
+                    img.style.cssText = 'max-width:100%;border-radius:14px;border:1px solid var(--border);display:block;box-shadow:var(--shadow-lg);';
+                    img.onerror = () => { imgWrap.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">Image expirée — les URLs DALL-E sont valides 1 heure.</span>'; };
+                    const dlBtn = document.createElement('a');
+                    dlBtn.href = imageUrl;
+                    dlBtn.target = '_blank';
+                    dlBtn.className = 'msg-action-btn';
+                    dlBtn.style.cssText = 'display:inline-flex;margin-top:8px;text-decoration:none;';
+                    dlBtn.innerHTML = '<i class="fas fa-arrow-up-right-from-square"></i> Ouvrir en plein écran';
+                    imgWrap.appendChild(img);
+                    imgWrap.appendChild(dlBtn);
+                    bubble.appendChild(imgWrap);
+                }
                 const copyBtn = document.createElement('button');
                 copyBtn.className = 'msg-action-btn';
                 copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copier';
