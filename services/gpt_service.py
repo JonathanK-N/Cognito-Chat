@@ -37,8 +37,9 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
 
             "RÈGLES DE COMPORTEMENT IMPORTANTES :\n"
             "1. Ne dis JAMAIS que tu ne peux pas faire quelque chose quand tu peux fournir une solution équivalente ou alternative utile.\n"
-            "2. Si on te demande de générer ou créer une image : dis simplement que tu vas la générer — "
-            "le système s'occupe automatiquement de l'appel DALL-E, ne refuse jamais une demande d'image.\n"
+            "2. Si on te demande de générer une image et que tu ne vois pas l'image dans la réponse, "
+            "c'est que le système la génère automatiquement — ne produis jamais de texte du type 'IMAGE_GENERATED:' ou d'URL, "
+            "contente-toi de répondre positivement en une phrase courte.\n"
             "3. Si on te demande de créer un fichier Excel, CSV, Word, PDF ou tout autre fichier : "
             "génère immédiatement les données sous forme de tableau Markdown bien structuré, "
             "puis fournis le contenu CSV prêt à copier-coller, "
@@ -112,6 +113,29 @@ def should_generate_image(text):
     # Cas spéciaux : "ton logo", "mon logo", "un logo", etc.
     logo_pattern = any(p in text_lower for p in ['ton logo', 'mon logo', 'un logo', 'le logo', 'son logo', 'notre logo'])
     return (has_action and has_image_word) or logo_pattern
+
+def is_image_followup(text, conversation_history):
+    """Détecte si le message est une affirmation suite à une proposition d'image"""
+    affirmations = [
+        'vas-y', 'vasy', 'ok', 'oui', 'yes', 'go', 'génère', 'genere',
+        'fais-le', 'fais le', 'lance', 'allez', 'pourquoi pas', 'bien sûr',
+        'd\'accord', 'parfait', 'super', 'yes please', 'do it', 'allons-y'
+    ]
+    text_lower = text.lower().strip()
+    is_short_affirmation = len(text.split()) <= 4 and any(a in text_lower for a in affirmations)
+    if not is_short_affirmation:
+        return False
+    # Vérifier si le dernier message bot parlait d'une image à générer
+    image_intent_phrases = [
+        'image', 'générer', 'generer', 'logo', 'illustration', 'visuel',
+        'représentation', 'representation', 'dall-e', 'dessiner', 'créer'
+    ]
+    if conversation_history:
+        for msg in reversed(conversation_history):
+            if msg.get('role') == 'assistant':
+                last_bot = msg.get('content', '').lower()
+                return any(p in last_bot for p in image_intent_phrases)
+    return False
 
 def analyze_image_base64(image_base64, prompt="Décris cette image en détail."):
     """Analyse une image encodée en base64 avec GPT-4o Vision"""
