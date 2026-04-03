@@ -333,47 +333,58 @@ def voice_chat(session_id):
     """
     Reçoit un blob audio (webm/mp3), transcrit avec Whisper,
     génère une réponse vocale GPT-4o, synthétise avec OpenAI TTS nova,
-    retourne JSON { transcript, response_text } + audio MP3 en base64.
+    retourne JSON { transcript, response_text, audio_b64 }.
     """
+    import tempfile, base64
+
+    audio_file = request.files.get('audio')
+    if not audio_file:
+        return jsonify({'success': False, 'error': 'Aucun fichier audio reçu.'}), 400
+
+    # Détecter l'extension — Whisper accepte webm, mp4, mp3, wav, ogg
+    filename = audio_file.filename or 'voice.webm'
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'webm'
+    if ext not in ('webm', 'mp4', 'mp3', 'wav', 'ogg', 'm4a'):
+        ext = 'webm'
+
+    # Sauvegarder dans un fichier temporaire
+    tmp_path = None
     try:
-        audio_file = request.files.get('audio')
-        if not audio_file:
-            return jsonify({'success': False, 'error': 'Aucun fichier audio reçu.'}), 400
-
-        import tempfile, base64
-
-        # Sauvegarder temporairement
-        suffix = '.webm'
-        ext = audio_file.filename.rsplit('.', 1)[-1].lower() if '.' in audio_file.filename else 'webm'
-        suffix = f'.{ext}'
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            audio_file.save(tmp.name)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{ext}') as tmp:
+            audio_file.save(tmp)
             tmp_path = tmp.name
 
+        # 1. Transcription Whisper
         try:
-            # 1. Transcription Whisper
             transcript = transcribe_audio(tmp_path)
-        finally:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Whisper: {str(e)}'}), 500
 
         if not transcript or transcript.startswith('Erreur'):
-            return jsonify({'success': False, 'error': "Je n'ai pas pu comprendre l'audio."}), 400
+            return jsonify({'success': False, 'error': transcript or "Transcription échouée."}), 400
 
-        # 2. Historique + réponse GPT vocal
-        conversation_history = get_conversation_history(session_id, 6)
-        response_text = get_voice_response(transcript, conversation_history)
+        # 2. Réponse GPT vocal
+        try:
+            conversation_history = get_conversation_history(session_id, 6)
+            response_text = get_voice_response(transcript, conversation_history)
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'GPT: {str(e)}'}), 500
 
-        # 3. Synthèse vocale OpenAI TTS (voix nova)
-        audio_bytes = tts_to_bytes(response_text, voice="nova")
-        audio_b64 = base64.b64encode(audio_bytes).decode('utf-8') if audio_bytes else None
+        # 3. Synthèse TTS
+        try:
+            audio_bytes = tts_to_bytes(response_text, voice="nova")
+            audio_b64 = base64.b64encode(audio_bytes).decode('utf-8') if audio_bytes else None
+        except Exception as e:
+            audio_b64 = None  # la voix est optionnelle — on continue sans
 
-        # 4. Sauvegarder la conversation
-        user_id = session['user_id']
-        save_conversation(session_id, user_id, "web-voice", "voice", transcript, response_text)
-
-        if len(conversation_history) == 0:
-            update_session_title(session_id, transcript[:50])
+        # 4. Sauvegarder
+        try:
+            user_id = session['user_id']
+            save_conversation(session_id, user_id, "web-voice", "voice", transcript, response_text)
+            if len(conversation_history) == 0:
+                update_session_title(session_id, transcript[:50])
+        except Exception:
+            pass  # non bloquant
 
         return jsonify({
             'success': True,
@@ -383,7 +394,13 @@ def voice_chat(session_id):
         })
 
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': f'Erreur serveur: {str(e)}'}), 500
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except Exception:
+                pass
 
 
 @web_bp.route('/delete-session/<session_id>', methods=['POST'])

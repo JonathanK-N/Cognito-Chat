@@ -44,11 +44,14 @@ def transcribe_audio_from_url(audio_url):
 def transcribe_audio(audio_path):
     """Transcrit un fichier audio local avec Whisper"""
     try:
+        # Whisper a besoin du nom de fichier pour détecter le format
+        filename = os.path.basename(audio_path)
         with open(audio_path, 'rb') as audio_file:
             transcript = client.audio.transcriptions.create(
                 model="whisper-1",
-                file=audio_file
+                file=(filename, audio_file),
+                response_format="text"
             )
-        return transcript.text
+        return transcript if isinstance(transcript, str) else transcript.text
     except Exception as e:
         return f"Erreur Whisper: {str(e)}"

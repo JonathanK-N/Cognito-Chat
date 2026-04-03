@@ -1471,48 +1471,70 @@
             const mimeType = audioChunks[0]?.type || 'audio/webm';
             const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
             const blob = new Blob(audioChunks, { type: mimeType });
+
+            if (blob.size < 1000) {
+                voiceTranscript.textContent = "Audio trop court. Parle plus longtemps.";
+                setVoiceState('idle', 'Prêt à écouter');
+                return;
+            }
+
             const formData = new FormData();
             formData.append('audio', blob, `voice.${ext}`);
 
+            let res, data;
             try {
-                const res = await fetch(`/voice-chat/${SESSION_ID}`, {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 90000); // 90s
+                res = await fetch(`/voice-chat/${SESSION_ID}`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    signal: controller.signal
                 });
-                const data = await res.json();
-
-                if (!data.success) {
-                    voiceTranscript.textContent = data.error || "Erreur lors du traitement.";
-                    setVoiceState('idle', 'Prêt à écouter');
-                    return;
-                }
-
-                // Afficher la transcription
-                voiceTranscript.textContent = `"${data.transcript}"`;
-
-                // Ajouter les messages dans le chat
-                addMessage(data.transcript, 'user');
-                addMessage(data.response_text, 'bot');
-
-                // Lire la réponse audio via WebAudio (pas de blocage autoplay)
-                if (data.audio_b64) {
-                    setVoiceState('speaking', 'Cognito parle...');
-                    try {
-                        await playAudioB64(data.audio_b64);
-                    } catch(e) {
-                        console.warn('Audio playback error:', e);
-                    }
-                    if (voiceActive) {
-                        setVoiceState('idle', 'Prêt à écouter');
-                        voiceTranscript.textContent = 'Clique sur l\'orbe pour répondre';
-                        setTimeout(() => { if (voiceActive) startRecording(); }, 800);
-                    }
-                } else {
-                    setVoiceState('idle', 'Prêt à écouter');
-                }
-
+                clearTimeout(timeout);
             } catch (e) {
-                voiceTranscript.textContent = "Erreur réseau. Réessaie.";
+                const msg = e.name === 'AbortError'
+                    ? "Le serveur met trop de temps. Réessaie."
+                    : `Erreur réseau: ${e.message}`;
+                voiceTranscript.textContent = msg;
+                setVoiceState('idle', 'Prêt à écouter');
+                return;
+            }
+
+            try {
+                data = await res.json();
+            } catch(e) {
+                voiceTranscript.textContent = `Erreur serveur (${res.status}). Vérifie les logs.`;
+                setVoiceState('idle', 'Prêt à écouter');
+                return;
+            }
+
+            if (!data.success) {
+                voiceTranscript.textContent = data.error || "Erreur lors du traitement.";
+                setVoiceState('idle', 'Prêt à écouter');
+                return;
+            }
+
+            // Afficher la transcription
+            voiceTranscript.textContent = `"${data.transcript}"`;
+
+            // Ajouter les messages dans le chat
+            addMessage(data.transcript, 'user');
+            addMessage(data.response_text, 'bot');
+
+            // Lire la réponse audio
+            if (data.audio_b64) {
+                setVoiceState('speaking', 'Cognito parle...');
+                try {
+                    await playAudioB64(data.audio_b64);
+                } catch(e) {
+                    console.warn('Audio playback error:', e);
+                }
+                if (voiceActive) {
+                    setVoiceState('idle', 'Prêt à écouter');
+                    voiceTranscript.textContent = 'Clique sur l\'orbe pour répondre';
+                    setTimeout(() => { if (voiceActive) startRecording(); }, 800);
+                }
+            } else {
                 setVoiceState('idle', 'Prêt à écouter');
             }
         }
