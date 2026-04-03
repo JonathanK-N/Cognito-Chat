@@ -133,7 +133,7 @@ def generate_pdf(content, title="Document Cognito Chat"):
         def header(self):
             self.set_font('Helvetica', 'B', 10)
             self.set_text_color(99, 102, 241)
-            self.cell(0, 8, 'Cognito Chat — Cognito Inc.', align='R')
+            self.cell(0, 8, 'Cognito Chat - Cognito Inc.', align='R')
             self.ln(4)
             self.set_draw_color(99, 102, 241)
             self.set_line_width(0.3)
