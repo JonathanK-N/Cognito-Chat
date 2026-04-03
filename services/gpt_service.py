@@ -101,10 +101,17 @@ def should_generate_image(text):
         'an image', 'a picture', 'a photo', 'a drawing'
     ]
     text_lower = text.lower()
-    image_words = ['image', 'photo', 'dessin', 'illustration', 'picture', 'drawing', 'tableau', 'visuel']
+    image_words = [
+        'image', 'photo', 'dessin', 'illustration', 'picture', 'drawing',
+        'tableau', 'visuel', 'logo', 'icone', 'icône', 'bannière', 'banniere',
+        'affiche', 'poster', 'portrait', 'paysage', 'background', 'wallpaper',
+        'avatar', 'thumbnail', 'cover', 'art', 'artwork', 'sketch', 'render'
+    ]
     has_action = any(k in text_lower for k in keywords)
     has_image_word = any(w in text_lower for w in image_words)
-    return has_action and has_image_word
+    # Cas spéciaux : "ton logo", "mon logo", "un logo", etc.
+    logo_pattern = any(p in text_lower for p in ['ton logo', 'mon logo', 'un logo', 'le logo', 'son logo', 'notre logo'])
+    return (has_action and has_image_word) or logo_pattern
 
 def analyze_image_base64(image_base64, prompt="Décris cette image en détail."):
     """Analyse une image encodée en base64 avec GPT-4o Vision"""
