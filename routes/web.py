@@ -137,8 +137,10 @@ def chat(session_id):
                         f"Ne dis pas que tu génères un fichier — fournis directement le contenu du document."
                     )
                     doc_content = get_gpt_response(gpt_prompt, max_tokens=3000, use_search=False)
-                    # Titre du document
+                    # Titre du document — nettoyer le markdown
+                    import re as _re
                     doc_title = file_subject[:80] if file_subject else "Document Cognito Chat"
+                    doc_title = _re.sub(r'\*+', '', doc_title).strip()
                     response_text = (
                         f"__FILE_GENERATED__:{file_type}:{doc_title}\n{doc_content}"
                     )

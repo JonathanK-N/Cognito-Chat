@@ -193,10 +193,10 @@ def generate_pdf(content, title="Document Cognito Chat"):
                 continue
 
             # Élément de liste
-            if re.match(r'^\s*[-*+•]\s+', line):
-                clean = re.sub(r'^\s*[-*+•]\s+', '', line)
+            if re.match(r'^\s*[-*+\u2022]\s+', line):
+                clean = re.sub(r'^\s*[-*+\u2022]\s+', '', line)
                 pdf.set_x(20)
-                pdf.cell(5, 6, '•')
+                pdf.cell(5, 6, '-')
                 pdf.multi_cell(0, 6, markdown_to_plain(clean))
                 continue
 
