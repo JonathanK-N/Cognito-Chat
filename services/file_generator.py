@@ -244,7 +244,7 @@ def generate_word(content, title="Document Cognito Chat"):
 
 # ── POWERPOINT ────────────────────────────────────────────────────────────────
 
-def generate_pptx(content, title="Présentation Cognito Chat", cover_image=None):
+def generate_pptx(content, title="Présentation Cognito Chat", cover_image=None, slide_images=None):
     from pptx import Presentation
     from pptx.util import Inches, Pt, Emu
     from pptx.dml.color import RGBColor
@@ -292,100 +292,117 @@ def generate_pptx(content, title="Présentation Cognito Chat", cover_image=None)
         run.font.color.rgb = color
         return txBox
 
+    if slide_images is None:
+        slide_images = []
     title_clean = strip_markdown(title)
+
+    def embed_picture_behind(slide, img_bytes, left, top, width, height):
+        """Ajoute une image et la place derrière toutes les autres formes."""
+        try:
+            stream = io.BytesIO(img_bytes)
+            pic = slide.shapes.add_picture(stream, left, top, width, height)
+            sp_tree = slide.shapes._spTree
+            sp_tree.remove(pic._element)
+            sp_tree.insert(2, pic._element)
+            return True
+        except Exception:
+            return False
 
     # ─── SLIDE TITRE ─────────────────────────────────────────────────────────
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, DARK)
 
-    has_image = cover_image is not None
-    img_start = Inches(7.5)  # image starts at x=7.5" (right 43%)
+    TEXT_W = Inches(7.0)   # zone texte (gauche)
+    IMG_X  = Inches(7.2)   # image démarre à x=7.2"
+    IMG_W  = prs.slide_width - IMG_X
 
-    if has_image:
-        # Image côté droit — ajoutée en premier pour être derrière les formes
-        try:
-            img_stream = io.BytesIO(cover_image)
-            pic = slide.shapes.add_picture(
-                img_stream, img_start, 0,
-                prs.slide_width - img_start, prs.slide_height
-            )
-            # Envoyer l'image derrière toutes les autres formes
-            sp_tree = slide.shapes._spTree
-            sp_tree.remove(pic._element)
-            sp_tree.insert(2, pic._element)
-        except Exception:
-            has_image = False
+    # Image de couverture côté droit (ajoutée EN PREMIER → derrière)
+    if cover_image:
+        embed_picture_behind(slide, cover_image, IMG_X, 0, IMG_W, prs.slide_height)
 
-    # Fond gauche opaque (couvre toute la zone texte)
-    add_rect(slide, 0, 0, Inches(7.8), prs.slide_height, DARK)
+    # Fond sombre gauche pour rendre le texte lisible
+    add_rect(slide, 0, 0, Inches(7.4), prs.slide_height, DARK)
 
-    # Bande décorative droite si pas d'image
-    if not has_image:
-        add_rect(slide, Inches(8.5), 0, Inches(4.83), prs.slide_height, DARK2)
-        add_rect(slide, Inches(10.5), Inches(1), Inches(2.8), Inches(5.5), DARK3)
+    # Barre violet top (full width)
+    add_rect(slide, 0, 0, prs.slide_width, Inches(0.07), PURPLE)
+    # Barre violet left
+    add_rect(slide, 0, 0, Inches(0.14), prs.slide_height, PURPLE)
+    # Barre violet bottom
+    add_rect(slide, 0, Inches(7.43), prs.slide_width, Inches(0.07), PURPLE)
 
-    # Barre verticale gauche (accent couleur)
-    add_rect(slide, 0, 0, Inches(0.12), prs.slide_height, PURPLE)
-
-    # Barre horizontale top
-    add_rect(slide, 0, 0, prs.slide_width, Inches(0.06), PURPLE)
-
-    # Label "COGNITO INC." en haut
+    # "COGNITO INC." tag
     add_tb(slide, 'COGNITO INC.',
-           Inches(0.25), Inches(0.18), Inches(5), Inches(0.45),
+           Inches(0.3), Inches(0.2), Inches(5), Inches(0.5),
            font_size=10, bold=True, color=PURPLE)
 
-    # Titre principal
-    fs_title = 38 if len(title_clean) <= 35 else (30 if len(title_clean) <= 55 else 24)
+    # Titre
+    fs_t = 40 if len(title_clean) <= 30 else (32 if len(title_clean) <= 50 else 26)
     add_tb(slide, title_clean,
-           Inches(0.25), Inches(1.9), Inches(7.0), Inches(2.8),
-           font_size=fs_title, bold=True, color=WHITE)
+           Inches(0.3), Inches(1.8), TEXT_W, Inches(2.8),
+           font_size=fs_t, bold=True, color=WHITE)
 
-    # Ligne décorative sous le titre
-    add_rect(slide, Inches(0.25), Inches(4.85), Inches(3.5), Inches(0.05), PURPLE)
+    # Ligne déco
+    add_rect(slide, Inches(0.3), Inches(4.9), Inches(3.8), Inches(0.055), PURPLE)
 
     # Sous-titre
-    add_tb(slide, 'Cognito Chat - Cognito Inc.',
-           Inches(0.25), Inches(5.05), Inches(6.5), Inches(0.55),
+    add_tb(slide, 'Cognito Chat  ·  Cognito Inc.',
+           Inches(0.3), Inches(5.1), TEXT_W, Inches(0.6),
            font_size=13, color=GRAY, italic=True)
 
-    # Barre bottom
-    add_rect(slide, 0, Inches(7.35), prs.slide_width, Inches(0.15), DARK2)
-
     # ─── SLIDES DE CONTENU ───────────────────────────────────────────────────
-    sections = parse_sections(content)
-    slide_num = 0
+    sections   = parse_sections(content)
+    slide_rank = 0   # index dans slide_images
 
     for sec_title, sec_body in sections:
         if not sec_title and not sec_body.strip():
             continue
-        slide_num += 1
 
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         set_bg(slide, DARK)
 
-        # Bande header
-        add_rect(slide, 0, 0, prs.slide_width, Inches(1.25), DARK2)
-        # Accent gauche violet
-        add_rect(slide, 0, 0, Inches(0.1), Inches(1.25), PURPLE)
-        # Accent droit cyan
-        add_rect(slide, prs.slide_width - Inches(0.1), 0, Inches(0.1), prs.slide_height, CYAN)
+        # Récupérer l'image de ce slide (si disponible)
+        img_bytes = slide_images[slide_rank] if slide_rank < len(slide_images) else None
+        slide_rank += 1
 
-        # Numéro de slide
-        add_tb(slide, f'{slide_num:02d}',
-               Inches(12.5), Inches(0.1), Inches(0.7), Inches(0.55),
-               font_size=13, bold=True, color=PURPLE, align=PP_ALIGN.RIGHT)
+        HAS_IMG   = img_bytes is not None
+        HEADER_H  = Inches(1.2)
+        FOOTER_Y  = Inches(7.1)
+        FOOTER_H  = Inches(0.4)
+        IMG_LEFT  = Inches(7.0)   # l'image commence à 7" (droite)
+        IMG_WIDTH = prs.slide_width - IMG_LEFT
+        TXT_WIDTH = Inches(6.5)   # zone texte (gauche)
 
-        # Titre section
+        # ── Header bar ──
+        add_rect(slide, 0, 0, prs.slide_width, HEADER_H, DARK2)
+        add_rect(slide, 0, 0, Inches(0.12), HEADER_H, PURPLE)  # accent gauche
+
+        # Numéro slide (haut droit)
+        num_label = f'{slide_rank:02d}'
+        add_tb(slide, num_label,
+               Inches(12.4), Inches(0.08), Inches(0.8), Inches(0.6),
+               font_size=14, bold=True, color=PURPLE, align=PP_ALIGN.RIGHT)
+
+        # Titre de la slide
         display_title = strip_markdown(sec_title) if sec_title else 'Contenu'
         add_tb(slide, display_title,
-               Inches(0.25), Inches(0.08), Inches(11.8), Inches(1.1),
-               font_size=27, bold=True, color=WHITE)
+               Inches(0.25), Inches(0.05), Inches(11.8), HEADER_H,
+               font_size=28, bold=True, color=WHITE)
 
-        # Ligne de séparation sous header
-        add_rect(slide, Inches(0.1), Inches(1.25), Inches(13.1), Inches(0.03), PURPLE)
+        # Ligne violet sous le header
+        add_rect(slide, 0, HEADER_H, prs.slide_width, Inches(0.035), PURPLE)
 
-        # Extraire les bullets
+        # ── Image droite (ajoutée avant le texte → derrière si overlap) ──
+        if HAS_IMG:
+            embed_picture_behind(
+                slide, img_bytes,
+                IMG_LEFT, HEADER_H,
+                IMG_WIDTH, FOOTER_Y - HEADER_H
+            )
+            # Bande sombre à gauche pour séparer image et texte
+            add_rect(slide, IMG_LEFT - Inches(0.05), HEADER_H,
+                     Inches(0.05), FOOTER_Y - HEADER_H, DARK)
+
+        # ── Bullets (zone gauche) ──
         bullets = []
         for line in sec_body.split('\n'):
             line = line.rstrip()
@@ -397,27 +414,31 @@ def generate_pptx(content, title="Présentation Cognito Chat", cover_image=None)
                 bullets.append(clean)
 
         if bullets:
+            bx_width = TXT_WIDTH if HAS_IMG else Inches(12.7)
+            max_b  = 5 if HAS_IMG else 7
+            fs_b   = 19 if len(bullets) <= 4 else (17 if len(bullets) <= 6 else 15)
+
             txBox = slide.shapes.add_textbox(
-                Inches(0.4), Inches(1.45), Inches(12.7), Inches(5.8))
+                Inches(0.3), HEADER_H + Inches(0.25),
+                bx_width, FOOTER_Y - HEADER_H - Inches(0.3)
+            )
             tf = txBox.text_frame
             tf.word_wrap = True
-            max_bullets = 6
-            fs_bullet = 20 if len(bullets) <= 4 else (17 if len(bullets) <= 6 else 15)
 
-            for i, bullet in enumerate(bullets[:max_bullets]):
+            for i, bullet in enumerate(bullets[:max_b]):
                 p = tf.add_paragraph() if i > 0 else tf.paragraphs[0]
                 p.alignment = PP_ALIGN.LEFT
-                p.space_before = Emu(120000)
-                p.space_after  = Emu(40000)
+                p.space_before = Emu(140000)
+                p.space_after  = Emu(50000)
                 run = p.add_run()
-                run.text = '\u25b8  ' + bullet   # ▸
-                run.font.size = Pt(fs_bullet)
+                run.text = '\u25b8  ' + bullet
+                run.font.size = Pt(fs_b)
                 run.font.color.rgb = LIGHT if i % 2 == 0 else GRAY
 
-        # Footer
-        add_rect(slide, 0, Inches(7.2), prs.slide_width, Inches(0.3), DARK2)
-        add_tb(slide, 'Cognito Chat - Cognito Inc.',
-               Inches(0), Inches(7.2), Inches(13.33), Inches(0.3),
+        # ── Footer ──
+        add_rect(slide, 0, FOOTER_Y, prs.slide_width, FOOTER_H, DARK2)
+        add_tb(slide, 'Cognito Chat  ·  Cognito Inc.',
+               Inches(0), FOOTER_Y, prs.slide_width, FOOTER_H,
                font_size=8, color=RGBColor(80, 95, 130),
                align=PP_ALIGN.CENTER, italic=True)
 
@@ -425,28 +446,27 @@ def generate_pptx(content, title="Présentation Cognito Chat", cover_image=None)
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, DARK)
 
-    # Bloc décoratif droit
-    add_rect(slide, Inches(8.5), 0,        Inches(4.83), prs.slide_height, DARK2)
-    add_rect(slide, Inches(10),  Inches(1.2), Inches(3.33), Inches(5.1),   DARK3)
-    add_rect(slide, Inches(11.5), Inches(2.5), Inches(1.83), Inches(2.5),  PURPLE)
+    add_rect(slide, 0, 0,               Inches(0.12), prs.slide_height, PURPLE)
+    add_rect(slide, 0, 0,               prs.slide_width, Inches(0.07), PURPLE)
+    add_rect(slide, 0, Inches(7.43),    prs.slide_width, Inches(0.07), PURPLE)
 
-    # Accents
-    add_rect(slide, 0, 0, Inches(0.12), prs.slide_height, PURPLE)
-    add_rect(slide, 0, 0, prs.slide_width, Inches(0.06), PURPLE)
-    add_rect(slide, 0, Inches(7.44), prs.slide_width, Inches(0.06), PURPLE)
+    # Bloc décoratif droit
+    add_rect(slide, Inches(8.8),  0,             Inches(4.53), prs.slide_height, DARK2)
+    add_rect(slide, Inches(10.3), Inches(1.5),   Inches(3.03), Inches(4.5),      DARK3)
+    add_rect(slide, Inches(11.5), Inches(2.8),   Inches(1.83), Inches(2.0),      PURPLE)
 
     add_tb(slide, 'Merci',
-           Inches(0.25), Inches(2.2), Inches(8), Inches(1.4),
-           font_size=60, bold=True, color=WHITE)
+           Inches(0.3), Inches(2.0), Inches(8.2), Inches(1.5),
+           font_size=64, bold=True, color=WHITE)
 
-    add_rect(slide, Inches(0.25), Inches(3.75), Inches(4), Inches(0.06), PURPLE)
+    add_rect(slide, Inches(0.3), Inches(3.65), Inches(4.2), Inches(0.06), PURPLE)
 
     add_tb(slide, title_clean,
-           Inches(0.25), Inches(3.95), Inches(7.8), Inches(0.9),
-           font_size=18, color=CYAN)
+           Inches(0.3), Inches(3.85), Inches(8.2), Inches(0.9),
+           font_size=19, color=CYAN)
 
-    add_tb(slide, 'Cognito Chat - Cognito Inc.',
-           Inches(0.25), Inches(5.0), Inches(7.8), Inches(0.55),
+    add_tb(slide, 'Cognito Chat  ·  Cognito Inc.',
+           Inches(0.3), Inches(4.9), Inches(8.2), Inches(0.6),
            font_size=13, color=GRAY, italic=True)
 
     buf = io.BytesIO()

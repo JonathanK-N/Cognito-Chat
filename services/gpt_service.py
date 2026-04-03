@@ -77,16 +77,18 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
     except Exception as e:
         return f"Erreur GPT: {str(e)}"
 
-def generate_image(prompt):
+def generate_image(prompt, size="1024x1024"):
     """Génère une image avec DALL-E 3 et retourne (url, error_message)"""
     # Prompt trop court ou invalide (CSS, code, lien…) → refus propre
     if len(prompt.strip()) < 5 or '{' in prompt or 'http' in prompt.lower():
         return None, "Le prompt fourni n'est pas valide pour générer une image."
+    if size not in {"1024x1024", "1792x1024", "1024x1792"}:
+        size = "1024x1024"
     try:
         response = client.images.generate(
             model="dall-e-3",
             prompt=prompt,
-            size="1024x1024",
+            size=size,
             quality="standard",
             n=1
         )

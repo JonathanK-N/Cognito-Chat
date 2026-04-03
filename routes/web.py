@@ -246,25 +246,70 @@ def download_file():
             mimetype = 'application/pdf'
             filename = f"{safe_title}.pdf"
         elif file_type == 'pptx':
-            # Générer une image DALL-E pour la slide de couverture
+            from services.gpt_service import generate_image as _gen_img
+            from services.file_generator import parse_sections as _parse_sec
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            import requests as _req
+
+            subject = pending.get('subject', doc_title)
+
+            # Toutes les sections de contenu
+            all_sections = _parse_sec(doc_content)
+            content_sections = [(i, t, b) for i, (t, b) in enumerate(all_sections)
+                                if t and b.strip()]
+
+            def _fetch(prompt, size="1792x1024"):
+                try:
+                    url, _ = _gen_img(prompt, size=size)
+                    if url:
+                        r = _req.get(url, timeout=30)
+                        if r.status_code == 200:
+                            return r.content
+                except Exception:
+                    pass
+                return None
+
             cover_image = None
-            try:
-                from services.gpt_service import generate_image
-                import requests as _req
-                subject = pending.get('subject', doc_title)
-                img_prompt = (
-                    f"Professional presentation cover image about: {subject}. "
-                    f"Abstract modern business illustration, dark blue background, "
-                    f"purple and cyan accents, clean minimalist style, no text."
+            slide_images = [None] * len(content_sections)
+
+            # Génération parallèle : couverture + une image par slide
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {}
+
+                # Image de couverture
+                cover_prompt = (
+                    f"Professional corporate presentation cover photo about: {subject}. "
+                    f"High-quality, modern business aesthetic, dark navy background with "
+                    f"subtle purple and cyan light accents, no text, cinematic style."
                 )
-                img_url, _ = generate_image(img_prompt)
-                if img_url:
-                    r = _req.get(img_url, timeout=25)
-                    if r.status_code == 200:
-                        cover_image = r.content
-            except Exception:
-                pass
-            file_bytes = generate_pptx(doc_content, doc_title, cover_image=cover_image)
+                futures['cover'] = executor.submit(_fetch, cover_prompt, "1024x1024")
+
+                # Image par slide de contenu (max 8)
+                for rank, (idx, sec_title, _) in enumerate(content_sections[:8]):
+                    slide_prompt = (
+                        f"Professional high-quality photo illustrating '{sec_title}' "
+                        f"in the context of {subject}. "
+                        f"Clean modern corporate style, sharp and bright, no text overlay, "
+                        f"suitable for a business presentation slide."
+                    )
+                    futures[('slide', rank)] = executor.submit(_fetch, slide_prompt, "1792x1024")
+
+                for key, future in futures.items():
+                    try:
+                        result = future.result(timeout=60)
+                        if key == 'cover':
+                            cover_image = result
+                        else:
+                            _, rank = key
+                            slide_images[rank] = result
+                    except Exception:
+                        pass
+
+            file_bytes = generate_pptx(
+                doc_content, doc_title,
+                cover_image=cover_image,
+                slide_images=slide_images
+            )
             mimetype = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
             filename = f"{safe_title}.pptx"
         else:
