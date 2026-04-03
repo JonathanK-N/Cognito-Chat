@@ -1,10 +1,12 @@
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, session
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, session, send_file
 import os
+import io
 from werkzeug.utils import secure_filename
 from services.gpt_service import get_gpt_response, analyze_image, generate_image, should_generate_image, is_image_followup, extract_image_prompt_from_history
 from services.pdf_service import extract_text_from_pdf
 from services.whisper_service import transcribe_audio
 from services.tts_service import text_to_speech
+from services.file_generator import should_generate_file, generate_pdf, generate_word
 from database import save_conversation, get_conversations, get_conversation_history, create_chat_session, get_chat_sessions, get_session_messages, update_session_title, get_user_by_id, delete_chat_session
 
 def login_required(f):
@@ -123,7 +125,25 @@ def chat(session_id):
                 else:
                     response_text = img_error or "La génération d'image a échoué. Réessaie avec une description plus précise."
             else:
-                response_text = get_gpt_response(message, max_tokens=1500, conversation_history=conversation_history)
+                # Détection PDF / Word
+                file_type, file_subject = should_generate_file(message)
+                if file_type:
+                    message_type = f"file_{file_type}"
+                    # GPT génère le contenu structuré
+                    gpt_prompt = (
+                        f"Génère un contenu complet, bien structuré et professionnel pour un document "
+                        f"{'PDF' if file_type == 'pdf' else 'Word'} sur le sujet suivant : {file_subject}. "
+                        f"Utilise des titres markdown (##), des listes, et un contenu riche. "
+                        f"Ne dis pas que tu génères un fichier — fournis directement le contenu du document."
+                    )
+                    doc_content = get_gpt_response(gpt_prompt, max_tokens=3000, use_search=False)
+                    # Titre du document
+                    doc_title = file_subject[:80] if file_subject else "Document Cognito Chat"
+                    response_text = (
+                        f"__FILE_GENERATED__:{file_type}:{doc_title}\n{doc_content}"
+                    )
+                else:
+                    response_text = get_gpt_response(message, max_tokens=1500, conversation_history=conversation_history)
         else:
             response_text = "Veuillez saisir un message ou uploader un fichier."
         
@@ -138,15 +158,37 @@ def chat(session_id):
         
         # Extraire l'URL si image générée
         image_url_out = None
+        file_token_out = None
+
         if response_text.startswith('__IMAGE_GENERATED__:'):
             image_url_out = response_text.split(':', 1)[1]
             response_text = f"Voici l'image générée pour : *{message}*"
+
+        elif response_text.startswith('__FILE_GENERATED__:'):
+            # Format : __FILE_GENERATED__:pdf:Titre\nContenu...
+            header, _, doc_content = response_text.partition('\n')
+            parts = header.split(':', 2)
+            file_type_out = parts[1] if len(parts) > 1 else 'pdf'
+            doc_title = parts[2] if len(parts) > 2 else 'document'
+            # Stocker le contenu en session Flask pour le téléchargement
+            session['pending_file'] = {
+                'type': file_type_out,
+                'title': doc_title,
+                'content': doc_content
+            }
+            file_token_out = file_type_out
+            ext = 'pdf' if file_type_out == 'pdf' else 'docx'
+            response_text = (
+                f"Votre document **{doc_title}** est prêt.\n\n"
+                f"Cliquez sur le bouton ci-dessous pour le télécharger en `.{ext}`."
+            )
 
         return jsonify({
             'success': True,
             'response': response_text,
             'type': message_type,
-            'image_url': image_url_out
+            'image_url': image_url_out,
+            'file_ready': file_token_out
         })
         
     except Exception as e:
@@ -162,6 +204,42 @@ def new_chat():
     user_id = session['user_id']
     session_id = create_chat_session(user_id)
     return redirect(f'/chat/{session_id}')
+
+@web_bp.route('/download-file')
+@login_required
+def download_file():
+    """Télécharge le dernier fichier PDF ou Word généré"""
+    pending = session.get('pending_file')
+    if not pending:
+        return "Aucun fichier disponible.", 404
+
+    file_type = pending['type']
+    doc_title = pending['title']
+    doc_content = pending['content']
+
+    # Nettoyer le titre pour le nom de fichier
+    import re
+    safe_title = re.sub(r'[^\w\s-]', '', doc_title).strip().replace(' ', '_')[:60] or 'document'
+
+    try:
+        if file_type == 'pdf':
+            file_bytes = generate_pdf(doc_content, doc_title)
+            mimetype = 'application/pdf'
+            filename = f"{safe_title}.pdf"
+        else:
+            file_bytes = generate_word(doc_content, doc_title)
+            mimetype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            filename = f"{safe_title}.docx"
+
+        session.pop('pending_file', None)
+        return send_file(
+            io.BytesIO(file_bytes),
+            mimetype=mimetype,
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        return f"Erreur lors de la génération du fichier : {str(e)}", 500
 
 @web_bp.route('/delete-session/<session_id>', methods=['POST'])
 @login_required

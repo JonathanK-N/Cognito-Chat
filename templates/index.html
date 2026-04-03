@@ -1018,7 +1018,7 @@
                 const res = await fetch(`/chat/${SESSION_ID}`, { method: 'POST', body: fd });
                 const data = await res.json();
                 showTyping(false);
-                if (data.success) addMessage(data.response, 'bot', data.image_url || null);
+                if (data.success) addMessage(data.response, 'bot', data.image_url || null, data.file_ready || null);
                 else addMessage(`Désolé, une erreur est survenue. Veuillez réessayer.`, 'bot');
             } catch (err) {
                 showTyping(false);
@@ -1027,7 +1027,7 @@
         });
 
         // ── ADD MESSAGE ──
-        function addMessage(text, role, imageUrl = null) {
+        function addMessage(text, role, imageUrl = null, fileReady = null) {
             const wrap = document.createElement('div');
             wrap.className = `message ${role}`;
 
@@ -1054,6 +1054,24 @@
             if (role === 'bot') {
                 bubble.dataset.raw = text;
                 renderMarkdown(bubble, text);
+                // Bouton de téléchargement PDF/Word
+                if (fileReady) {
+                    const ext = fileReady === 'pdf' ? 'PDF' : 'Word';
+                    const icon = fileReady === 'pdf' ? 'fa-file-pdf' : 'fa-file-word';
+                    const color = fileReady === 'pdf' ? '#ef4444' : '#3b82f6';
+                    const dlWrap = document.createElement('div');
+                    dlWrap.style.cssText = 'margin-top:14px;';
+                    const dlBtn = document.createElement('a');
+                    dlBtn.href = '/download-file';
+                    dlBtn.target = '_blank';
+                    dlBtn.style.cssText = `display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:${color};color:white;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600;font-family:Inter,sans-serif;box-shadow:0 4px 14px rgba(0,0,0,0.2);transition:opacity 0.2s;`;
+                    dlBtn.onmouseover = () => dlBtn.style.opacity = '0.85';
+                    dlBtn.onmouseout = () => dlBtn.style.opacity = '1';
+                    dlBtn.innerHTML = `<i class="fas ${icon}"></i> Télécharger en ${ext}`;
+                    dlWrap.appendChild(dlBtn);
+                    bubble.appendChild(dlWrap);
+                }
+
                 // Image générée par DALL-E
                 if (imageUrl) {
                     const imgWrap = document.createElement('div');
