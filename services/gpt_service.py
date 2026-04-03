@@ -78,7 +78,10 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
         return f"Erreur GPT: {str(e)}"
 
 def generate_image(prompt):
-    """Génère une image avec DALL-E 3 et retourne l'URL"""
+    """Génère une image avec DALL-E 3 et retourne (url, error_message)"""
+    # Prompt trop court ou invalide (CSS, code, lien…) → refus propre
+    if len(prompt.strip()) < 5 or '{' in prompt or 'http' in prompt.lower():
+        return None, "Le prompt fourni n'est pas valide pour générer une image."
     try:
         response = client.images.generate(
             model="dall-e-3",
@@ -87,12 +90,25 @@ def generate_image(prompt):
             quality="standard",
             n=1
         )
-        return response.data[0].url
+        return response.data[0].url, None
     except Exception as e:
-        return None
+        err = str(e)
+        print(f"[DALL-E ERROR] {err}")
+        if 'content_policy' in err or 'safety' in err.lower():
+            return None, "Cette demande ne respecte pas les règles de contenu de DALL-E. Reformule ta description."
+        if 'billing' in err.lower() or 'quota' in err.lower() or 'rate' in err.lower():
+            return None, "Limite de génération d'images atteinte. Réessaie dans quelques instants."
+        return None, "La génération d'image a échoué. Réessaie avec une description plus précise."
 
 def should_generate_image(text):
     """Détecte si l'utilisateur demande une génération d'image"""
+    # Exclure les messages qui semblent être des plaintes / erreurs
+    complaint_words = ['erreur', 'error', 'marche pas', 'fonctionne pas', 'problème',
+                       'broken', 'bug', 'crash', 'invalide', 'échoué']
+    text_lower = text.lower()
+    if any(w in text_lower for w in complaint_words):
+        return False
+
     keywords = [
         'génère', 'genere', 'générer', 'generer', 'crée', 'cree', 'créer', 'creer',
         'dessine', 'dessiner', 'illustre', 'illustrer', 'imagine', 'imaginer',
@@ -101,7 +117,6 @@ def should_generate_image(text):
         'une image', 'un dessin', 'une illustration', 'une photo', 'un tableau',
         'an image', 'a picture', 'a photo', 'a drawing'
     ]
-    text_lower = text.lower()
     image_words = [
         'image', 'photo', 'dessin', 'illustration', 'picture', 'drawing',
         'tableau', 'visuel', 'logo', 'icone', 'icône', 'bannière', 'banniere',
@@ -110,22 +125,28 @@ def should_generate_image(text):
     ]
     has_action = any(k in text_lower for k in keywords)
     has_image_word = any(w in text_lower for w in image_words)
-    # Cas spéciaux : "ton logo", "mon logo", "un logo", etc.
     logo_pattern = any(p in text_lower for p in ['ton logo', 'mon logo', 'un logo', 'le logo', 'son logo', 'notre logo'])
     return (has_action and has_image_word) or logo_pattern
 
 def is_image_followup(text, conversation_history):
-    """Détecte si le message est une affirmation suite à une proposition d'image"""
+    """Détecte si le message est une COURTE affirmation après une proposition d'image du bot"""
+    # Exclure les messages qui semblent des plaintes
+    complaint_words = ['erreur', 'error', 'marche pas', 'fonctionne pas', 'problème',
+                       'lien', 'link', 'broken', 'bug', 'échoué', 'invalide']
+    text_lower = text.lower().strip()
+    if any(w in text_lower for w in complaint_words):
+        return False
+
     affirmations = [
         'vas-y', 'vasy', 'ok', 'oui', 'yes', 'go', 'génère', 'genere',
         'fais-le', 'fais le', 'lance', 'allez', 'pourquoi pas', 'bien sûr',
-        'd\'accord', 'parfait', 'super', 'yes please', 'do it', 'allons-y'
+        "d'accord", 'parfait', 'super', 'yes please', 'do it', 'allons-y'
     ]
-    text_lower = text.lower().strip()
     is_short_affirmation = len(text.split()) <= 4 and any(a in text_lower for a in affirmations)
     if not is_short_affirmation:
         return False
-    # Vérifier si le dernier message bot parlait d'une image à générer
+
+    # Vérifier que le dernier message du bot proposait bien une image
     image_intent_phrases = [
         'image', 'générer', 'generer', 'logo', 'illustration', 'visuel',
         'représentation', 'representation', 'dall-e', 'dessiner', 'créer'
@@ -136,6 +157,20 @@ def is_image_followup(text, conversation_history):
                 last_bot = msg.get('content', '').lower()
                 return any(p in last_bot for p in image_intent_phrases)
     return False
+
+def extract_image_prompt_from_history(conversation_history):
+    """Retrouve la vraie demande d'image de l'utilisateur dans l'historique"""
+    image_request_keywords = [
+        'logo', 'image', 'dessin', 'illustration', 'photo', 'genere', 'génère',
+        'crée', 'cree', 'dessine', 'picture', 'draw', 'avatar', 'bannière'
+    ]
+    if conversation_history:
+        for msg in reversed(conversation_history):
+            if msg.get('role') == 'user':
+                content = msg.get('content', '')
+                if any(k in content.lower() for k in image_request_keywords):
+                    return content
+    return None
 
 def analyze_image_base64(image_base64, prompt="Décris cette image en détail."):
     """Analyse une image encodée en base64 avec GPT-4o Vision"""

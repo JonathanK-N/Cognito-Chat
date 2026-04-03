@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, session
 import os
 from werkzeug.utils import secure_filename
-from services.gpt_service import get_gpt_response, analyze_image, generate_image, should_generate_image, is_image_followup
+from services.gpt_service import get_gpt_response, analyze_image, generate_image, should_generate_image, is_image_followup, extract_image_prompt_from_history
 from services.pdf_service import extract_text_from_pdf
 from services.whisper_service import transcribe_audio
 from services.tts_service import text_to_speech
@@ -112,21 +112,16 @@ def chat(session_id):
             if should_generate_image(message):
                 image_prompt = message
             elif is_image_followup(message, conversation_history):
-                # Reconstruire le sujet depuis le dernier message utilisateur pertinent
-                for msg in reversed(conversation_history):
-                    if msg.get('role') == 'user':
-                        image_prompt = msg.get('content', message)
-                        break
-                if not image_prompt:
-                    image_prompt = message
+                # Chercher la vraie demande d'image dans l'historique (pas juste le dernier msg)
+                image_prompt = extract_image_prompt_from_history(conversation_history) or message
 
             if image_prompt:
                 message_type = "image_generated"
-                image_url = generate_image(image_prompt)
+                image_url, img_error = generate_image(image_prompt)
                 if image_url:
                     response_text = f"__IMAGE_GENERATED__:{image_url}"
                 else:
-                    response_text = "La génération d'image a échoué. Veuillez réessayer avec une description plus précise."
+                    response_text = img_error or "La génération d'image a échoué. Réessaie avec une description plus précise."
             else:
                 response_text = get_gpt_response(message, max_tokens=1500, conversation_history=conversation_history)
         else:
