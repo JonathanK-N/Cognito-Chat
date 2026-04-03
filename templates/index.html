@@ -1377,8 +1377,42 @@
         let mediaRecorder = null;
         let audioChunks   = [];
         let voiceStream   = null;
-        let currentAudio  = null;   // Audio en cours de lecture
-        let voiceActive   = false;  // la modal est-elle ouverte ?
+        let voiceActive   = false;
+        let audioCtx      = null;
+        let currentSource = null;
+
+        // Déverrouille l'AudioContext dès le premier geste utilisateur
+        function unlockAudioCtx() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        // Joue un MP3 base64 via WebAudio (contourne l'autoplay policy)
+        function playAudioB64(b64) {
+            return new Promise((resolve, reject) => {
+                unlockAudioCtx();
+                const binary = atob(b64);
+                const bytes  = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                audioCtx.decodeAudioData(bytes.buffer, buffer => {
+                    if (currentSource) { try { currentSource.stop(); } catch(_){} }
+                    currentSource = audioCtx.createBufferSource();
+                    currentSource.buffer = buffer;
+                    currentSource.connect(audioCtx.destination);
+                    currentSource.onended = resolve;
+                    currentSource.start(0);
+                }, reject);
+            });
+        }
+
+        function stopCurrentAudio() {
+            if (currentSource) {
+                try { currentSource.stop(); } catch(_){}
+                currentSource = null;
+            }
+        }
 
         function setVoiceState(state, text) {
             // states : idle | recording | thinking | speaking
@@ -1395,12 +1429,6 @@
                 ? 'voice-wave' : 'voice-wave inactive';
         }
 
-        function stopCurrentAudio() {
-            if (currentAudio) {
-                currentAudio.pause();
-                currentAudio = null;
-            }
-        }
 
         async function startRecording() {
             try {
@@ -1466,22 +1494,19 @@
                 addMessage(data.transcript, 'user');
                 addMessage(data.response_text, 'bot');
 
-                // Lire la réponse audio
+                // Lire la réponse audio via WebAudio (pas de blocage autoplay)
                 if (data.audio_b64) {
                     setVoiceState('speaking', 'Cognito parle...');
-                    const audioSrc = 'data:audio/mp3;base64,' + data.audio_b64;
-                    currentAudio = new Audio(audioSrc);
-                    currentAudio.onended = () => {
-                        if (voiceActive) {
-                            setVoiceState('idle', 'Prêt à écouter');
-                            voiceTranscript.textContent = 'Clique sur l\'orbe pour répondre';
-                            // Auto-relance l'écoute après la réponse
-                            setTimeout(() => {
-                                if (voiceActive) startRecording();
-                            }, 800);
-                        }
-                    };
-                    await currentAudio.play();
+                    try {
+                        await playAudioB64(data.audio_b64);
+                    } catch(e) {
+                        console.warn('Audio playback error:', e);
+                    }
+                    if (voiceActive) {
+                        setVoiceState('idle', 'Prêt à écouter');
+                        voiceTranscript.textContent = 'Clique sur l\'orbe pour répondre';
+                        setTimeout(() => { if (voiceActive) startRecording(); }, 800);
+                    }
                 } else {
                     setVoiceState('idle', 'Prêt à écouter');
                 }
@@ -1494,6 +1519,7 @@
 
         function openVoiceModal() {
             voiceActive = true;
+            unlockAudioCtx();   // déverrouille dès le geste utilisateur
             voiceModal.classList.add('show');
             setVoiceState('idle', 'Prêt à écouter');
             voiceTranscript.textContent = 'Clique sur l\'orbe pour parler';
