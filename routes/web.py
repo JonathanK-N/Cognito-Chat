@@ -111,6 +111,7 @@ def chat(session_id):
         elif message:
             # Déterminer le prompt image : demande directe ou affirmation suite à une proposition
             image_prompt = None
+            file_subject = None
             if should_generate_image(message):
                 image_prompt = message
             elif is_image_followup(message, conversation_history):
@@ -129,19 +130,31 @@ def chat(session_id):
                 file_type, file_subject = should_generate_file(message)
                 if file_type:
                     message_type = f"file_{file_type}"
-                    # GPT génère le contenu structuré
                     fmt_label = {'pdf': 'PDF', 'word': 'Word', 'pptx': 'PowerPoint'}.get(file_type, 'document')
+                    # GPT génère le titre propre ET le contenu en une seule requête
                     gpt_prompt = (
                         f"Génère un contenu complet, bien structuré et professionnel pour un document "
-                        f"{fmt_label} sur le sujet suivant : {file_subject}. "
+                        f"{fmt_label} sur le sujet suivant : {file_subject}.\n\n"
+                        f"Format de réponse OBLIGATOIRE :\n"
+                        f"TITRE: [titre court et professionnel, 6 mots maximum]\n\n"
+                        f"[contenu complet avec titres ## et listes]\n\n"
                         f"Utilise des titres markdown (##), des listes, et un contenu riche. "
-                        f"Ne dis pas que tu génères un fichier — fournis directement le contenu du document."
+                        f"Ne dis pas que tu génères un fichier — fournis directement le contenu."
                     )
-                    doc_content = get_gpt_response(gpt_prompt, max_tokens=3000, use_search=False)
-                    # Titre du document — nettoyer le markdown
+                    raw_response = get_gpt_response(gpt_prompt, max_tokens=3000, use_search=False)
+                    # Extraire le titre de la première ligne
                     import re as _re
-                    doc_title = file_subject[:80] if file_subject else "Document Cognito Chat"
-                    doc_title = _re.sub(r'\*+', '', doc_title).strip()
+                    lines = raw_response.split('\n')
+                    if lines and lines[0].strip().startswith('TITRE:'):
+                        doc_title = lines[0].replace('TITRE:', '').strip()
+                        doc_title = _re.sub(r'[*#"\'\[\]]', '', doc_title).strip()[:80]
+                        doc_content = '\n'.join(lines[1:]).lstrip('\n')
+                    else:
+                        doc_title = file_subject[:60]
+                        doc_title = _re.sub(r'[*\[\]]', '', doc_title).strip()
+                        doc_content = raw_response
+                    if not doc_title or len(doc_title) < 2:
+                        doc_title = file_subject[:60]
                     response_text = (
                         f"__FILE_GENERATED__:{file_type}:{doc_title}\n{doc_content}"
                     )
@@ -177,13 +190,16 @@ def chat(session_id):
             session['pending_file'] = {
                 'type': file_type_out,
                 'title': doc_title,
-                'content': doc_content
+                'content': doc_content,
+                'subject': file_subject or doc_title
             }
             file_token_out = file_type_out
-            ext = 'pdf' if file_type_out == 'pdf' else 'docx'
+            ext_map = {'pdf': 'PDF', 'pptx': 'PowerPoint', 'word': 'Word'}
+            ext_label = ext_map.get(file_type_out, 'Word')
+            ext_file = {'pdf': 'pdf', 'pptx': 'pptx'}.get(file_type_out, 'docx')
             response_text = (
                 f"Votre document **{doc_title}** est prêt.\n\n"
-                f"Cliquez sur le bouton ci-dessous pour le télécharger en `.{ext}`."
+                f"Cliquez sur le bouton ci-dessous pour le télécharger en {ext_label} (`.{ext_file}`)."
             )
 
         return jsonify({
@@ -230,7 +246,25 @@ def download_file():
             mimetype = 'application/pdf'
             filename = f"{safe_title}.pdf"
         elif file_type == 'pptx':
-            file_bytes = generate_pptx(doc_content, doc_title)
+            # Générer une image DALL-E pour la slide de couverture
+            cover_image = None
+            try:
+                from services.gpt_service import generate_image
+                import requests as _req
+                subject = pending.get('subject', doc_title)
+                img_prompt = (
+                    f"Professional presentation cover image about: {subject}. "
+                    f"Abstract modern business illustration, dark blue background, "
+                    f"purple and cyan accents, clean minimalist style, no text."
+                )
+                img_url, _ = generate_image(img_prompt)
+                if img_url:
+                    r = _req.get(img_url, timeout=25)
+                    if r.status_code == 200:
+                        cover_image = r.content
+            except Exception:
+                pass
+            file_bytes = generate_pptx(doc_content, doc_title, cover_image=cover_image)
             mimetype = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
             filename = f"{safe_title}.pptx"
         else:

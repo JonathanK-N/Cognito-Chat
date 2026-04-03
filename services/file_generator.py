@@ -244,34 +244,44 @@ def generate_word(content, title="Document Cognito Chat"):
 
 # ── POWERPOINT ────────────────────────────────────────────────────────────────
 
-def generate_pptx(content, title="Présentation Cognito Chat"):
+def generate_pptx(content, title="Présentation Cognito Chat", cover_image=None):
     from pptx import Presentation
     from pptx.util import Inches, Pt, Emu
     from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN
 
     prs = Presentation()
-    prs.slide_width = Inches(13.33)
+    prs.slide_width  = Inches(13.33)
     prs.slide_height = Inches(7.5)
 
-    PURPLE = RGBColor(99, 102, 241)
-    CYAN   = RGBColor(6, 182, 212)
-    WHITE  = RGBColor(255, 255, 255)
-    DARK   = RGBColor(15, 23, 42)
-    LIGHT  = RGBColor(226, 232, 240)
+    # Palette
+    PURPLE  = RGBColor(99,  102, 241)
+    CYAN    = RGBColor(6,   182, 212)
+    WHITE   = RGBColor(255, 255, 255)
+    DARK    = RGBColor(10,  15,  30)
+    DARK2   = RGBColor(18,  24,  50)
+    DARK3   = RGBColor(25,  35,  70)
+    GRAY    = RGBColor(148, 163, 184)
+    LIGHT   = RGBColor(226, 232, 240)
 
     def set_bg(slide, color):
-        from pptx.util import Pt
         fill = slide.background.fill
         fill.solid()
         fill.fore_color.rgb = color
 
-    def add_text_box(slide, text, left, top, width, height,
-                     font_size=18, bold=False, color=WHITE,
-                     align=PP_ALIGN.LEFT, italic=False):
+    def add_rect(slide, left, top, width, height, fill_color):
+        shape = slide.shapes.add_shape(1, left, top, width, height)
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = fill_color
+        shape.line.fill.background()
+        return shape
+
+    def add_tb(slide, text, left, top, width, height,
+               font_size=18, bold=False, color=WHITE,
+               align=PP_ALIGN.LEFT, italic=False, wrap=True):
         txBox = slide.shapes.add_textbox(left, top, width, height)
         tf = txBox.text_frame
-        tf.word_wrap = True
+        tf.word_wrap = wrap
         p = tf.paragraphs[0]
         p.alignment = align
         run = p.add_run()
@@ -282,110 +292,162 @@ def generate_pptx(content, title="Présentation Cognito Chat"):
         run.font.color.rgb = color
         return txBox
 
-    # ── Slide 1 : titre ──
-    slide_layout = prs.slide_layouts[6]  # blank
-    slide = prs.slides.add_slide(slide_layout)
+    title_clean = strip_markdown(title)
+
+    # ─── SLIDE TITRE ─────────────────────────────────────────────────────────
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, DARK)
 
-    # Bande de couleur en haut
-    from pptx.util import Inches
-    shape = slide.shapes.add_shape(
-        1,  # MSO_SHAPE_TYPE.RECTANGLE
-        0, 0, prs.slide_width, Inches(0.08)
-    )
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = PURPLE
-    shape.line.fill.background()
+    has_image = cover_image is not None
+    img_start = Inches(7.5)  # image starts at x=7.5" (right 43%)
+
+    if has_image:
+        # Image côté droit — ajoutée en premier pour être derrière les formes
+        try:
+            img_stream = io.BytesIO(cover_image)
+            pic = slide.shapes.add_picture(
+                img_stream, img_start, 0,
+                prs.slide_width - img_start, prs.slide_height
+            )
+            # Envoyer l'image derrière toutes les autres formes
+            sp_tree = slide.shapes._spTree
+            sp_tree.remove(pic._element)
+            sp_tree.insert(2, pic._element)
+        except Exception:
+            has_image = False
+
+    # Fond gauche opaque (couvre toute la zone texte)
+    add_rect(slide, 0, 0, Inches(7.8), prs.slide_height, DARK)
+
+    # Bande décorative droite si pas d'image
+    if not has_image:
+        add_rect(slide, Inches(8.5), 0, Inches(4.83), prs.slide_height, DARK2)
+        add_rect(slide, Inches(10.5), Inches(1), Inches(2.8), Inches(5.5), DARK3)
+
+    # Barre verticale gauche (accent couleur)
+    add_rect(slide, 0, 0, Inches(0.12), prs.slide_height, PURPLE)
+
+    # Barre horizontale top
+    add_rect(slide, 0, 0, prs.slide_width, Inches(0.06), PURPLE)
+
+    # Label "COGNITO INC." en haut
+    add_tb(slide, 'COGNITO INC.',
+           Inches(0.25), Inches(0.18), Inches(5), Inches(0.45),
+           font_size=10, bold=True, color=PURPLE)
 
     # Titre principal
-    add_text_box(slide, strip_markdown(title),
-                 Inches(1), Inches(2.5), Inches(11.33), Inches(1.5),
-                 font_size=40, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+    fs_title = 38 if len(title_clean) <= 35 else (30 if len(title_clean) <= 55 else 24)
+    add_tb(slide, title_clean,
+           Inches(0.25), Inches(1.9), Inches(7.0), Inches(2.8),
+           font_size=fs_title, bold=True, color=WHITE)
+
+    # Ligne décorative sous le titre
+    add_rect(slide, Inches(0.25), Inches(4.85), Inches(3.5), Inches(0.05), PURPLE)
 
     # Sous-titre
-    add_text_box(slide, 'Cognito Chat - Cognito Inc.',
-                 Inches(1), Inches(4.2), Inches(11.33), Inches(0.6),
-                 font_size=16, color=LIGHT, align=PP_ALIGN.CENTER, italic=True)
+    add_tb(slide, 'Cognito Chat - Cognito Inc.',
+           Inches(0.25), Inches(5.05), Inches(6.5), Inches(0.55),
+           font_size=13, color=GRAY, italic=True)
 
-    # Ligne décorative
-    line = slide.shapes.add_shape(1, Inches(3), Inches(4.0), Inches(7.33), Inches(0.04))
-    line.fill.solid()
-    line.fill.fore_color.rgb = PURPLE
-    line.line.fill.background()
+    # Barre bottom
+    add_rect(slide, 0, Inches(7.35), prs.slide_width, Inches(0.15), DARK2)
 
-    # ── Slides de contenu ──
+    # ─── SLIDES DE CONTENU ───────────────────────────────────────────────────
     sections = parse_sections(content)
+    slide_num = 0
 
     for sec_title, sec_body in sections:
         if not sec_title and not sec_body.strip():
             continue
+        slide_num += 1
 
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         set_bg(slide, DARK)
 
-        # Bande titre en haut
-        banner = slide.shapes.add_shape(1, 0, 0, prs.slide_width, Inches(1.2))
-        banner.fill.solid()
-        banner.fill.fore_color.rgb = RGBColor(20, 20, 50)
-        banner.line.fill.background()
+        # Bande header
+        add_rect(slide, 0, 0, prs.slide_width, Inches(1.25), DARK2)
+        # Accent gauche violet
+        add_rect(slide, 0, 0, Inches(0.1), Inches(1.25), PURPLE)
+        # Accent droit cyan
+        add_rect(slide, prs.slide_width - Inches(0.1), 0, Inches(0.1), prs.slide_height, CYAN)
 
-        # Accent gauche
-        accent = slide.shapes.add_shape(1, 0, 0, Inches(0.08), Inches(1.2))
-        accent.fill.solid()
-        accent.fill.fore_color.rgb = PURPLE
-        accent.line.fill.background()
+        # Numéro de slide
+        add_tb(slide, f'{slide_num:02d}',
+               Inches(12.5), Inches(0.1), Inches(0.7), Inches(0.55),
+               font_size=13, bold=True, color=PURPLE, align=PP_ALIGN.RIGHT)
 
-        # Titre de la slide
+        # Titre section
         display_title = strip_markdown(sec_title) if sec_title else 'Contenu'
-        add_text_box(slide, display_title,
-                     Inches(0.3), Inches(0.1), Inches(12.5), Inches(1.0),
-                     font_size=28, bold=True, color=WHITE)
+        add_tb(slide, display_title,
+               Inches(0.25), Inches(0.08), Inches(11.8), Inches(1.1),
+               font_size=27, bold=True, color=WHITE)
 
-        # Corps — points clés
+        # Ligne de séparation sous header
+        add_rect(slide, Inches(0.1), Inches(1.25), Inches(13.1), Inches(0.03), PURPLE)
+
+        # Extraire les bullets
         bullets = []
         for line in sec_body.split('\n'):
             line = line.rstrip()
             if not line:
                 continue
-            clean = re.sub(r'^\s*[-*+\u2022\d+\.]\s*', '', line).strip()
+            clean = re.sub(r'^\s*[-*+\u2022\d]+[.)]\s*', '', line).strip()
             clean = strip_markdown(clean)
-            if clean:
+            if clean and len(clean) > 2:
                 bullets.append(clean)
 
         if bullets:
-            from pptx.util import Pt as PPt
-            txBox = slide.shapes.add_textbox(Inches(0.5), Inches(1.4), Inches(12.3), Inches(5.8))
+            txBox = slide.shapes.add_textbox(
+                Inches(0.4), Inches(1.45), Inches(12.7), Inches(5.8))
             tf = txBox.text_frame
             tf.word_wrap = True
-            for i, bullet in enumerate(bullets[:8]):  # max 8 points par slide
+            max_bullets = 6
+            fs_bullet = 20 if len(bullets) <= 4 else (17 if len(bullets) <= 6 else 15)
+
+            for i, bullet in enumerate(bullets[:max_bullets]):
                 p = tf.add_paragraph() if i > 0 else tf.paragraphs[0]
                 p.alignment = PP_ALIGN.LEFT
-                p.level = 0
+                p.space_before = Emu(120000)
+                p.space_after  = Emu(40000)
                 run = p.add_run()
-                run.text = ('• ' if not re.match(r'^\d', bullet) else '') + bullet
-                run.font.size = PPt(18)
-                run.font.color.rgb = LIGHT
-                p.space_before = Emu(80000)
+                run.text = '\u25b8  ' + bullet   # ▸
+                run.font.size = Pt(fs_bullet)
+                run.font.color.rgb = LIGHT if i % 2 == 0 else GRAY
 
         # Footer
-        add_text_box(slide, 'Cognito Chat - Cognito Inc.',
-                     Inches(0), Inches(7.1), Inches(13.33), Inches(0.4),
-                     font_size=8, color=RGBColor(100, 100, 130),
-                     align=PP_ALIGN.RIGHT, italic=True)
+        add_rect(slide, 0, Inches(7.2), prs.slide_width, Inches(0.3), DARK2)
+        add_tb(slide, 'Cognito Chat - Cognito Inc.',
+               Inches(0), Inches(7.2), Inches(13.33), Inches(0.3),
+               font_size=8, color=RGBColor(80, 95, 130),
+               align=PP_ALIGN.CENTER, italic=True)
 
-    # ── Slide finale ──
+    # ─── SLIDE FINALE ────────────────────────────────────────────────────────
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     set_bg(slide, DARK)
-    banner = slide.shapes.add_shape(1, 0, 0, prs.slide_width, Inches(0.08))
-    banner.fill.solid()
-    banner.fill.fore_color.rgb = PURPLE
-    banner.line.fill.background()
-    add_text_box(slide, 'Merci',
-                 Inches(1), Inches(3.0), Inches(11.33), Inches(1.0),
-                 font_size=48, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
-    add_text_box(slide, 'Cognito Chat - Cognito Inc.',
-                 Inches(1), Inches(4.2), Inches(11.33), Inches(0.5),
-                 font_size=16, color=LIGHT, align=PP_ALIGN.CENTER, italic=True)
+
+    # Bloc décoratif droit
+    add_rect(slide, Inches(8.5), 0,        Inches(4.83), prs.slide_height, DARK2)
+    add_rect(slide, Inches(10),  Inches(1.2), Inches(3.33), Inches(5.1),   DARK3)
+    add_rect(slide, Inches(11.5), Inches(2.5), Inches(1.83), Inches(2.5),  PURPLE)
+
+    # Accents
+    add_rect(slide, 0, 0, Inches(0.12), prs.slide_height, PURPLE)
+    add_rect(slide, 0, 0, prs.slide_width, Inches(0.06), PURPLE)
+    add_rect(slide, 0, Inches(7.44), prs.slide_width, Inches(0.06), PURPLE)
+
+    add_tb(slide, 'Merci',
+           Inches(0.25), Inches(2.2), Inches(8), Inches(1.4),
+           font_size=60, bold=True, color=WHITE)
+
+    add_rect(slide, Inches(0.25), Inches(3.75), Inches(4), Inches(0.06), PURPLE)
+
+    add_tb(slide, title_clean,
+           Inches(0.25), Inches(3.95), Inches(7.8), Inches(0.9),
+           font_size=18, color=CYAN)
+
+    add_tb(slide, 'Cognito Chat - Cognito Inc.',
+           Inches(0.25), Inches(5.0), Inches(7.8), Inches(0.55),
+           font_size=13, color=GRAY, italic=True)
 
     buf = io.BytesIO()
     prs.save(buf)
