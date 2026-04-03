@@ -5,7 +5,7 @@ from services.gpt_service import get_gpt_response, analyze_image
 from services.pdf_service import extract_text_from_pdf
 from services.whisper_service import transcribe_audio
 from services.tts_service import text_to_speech
-from database import save_conversation, get_conversations, get_conversation_history, create_chat_session, get_chat_sessions, get_session_messages, update_session_title, get_user_by_id
+from database import save_conversation, get_conversations, get_conversation_history, create_chat_session, get_chat_sessions, get_session_messages, update_session_title, get_user_by_id, delete_chat_session
 
 def login_required(f):
     """Décorateur pour protéger les routes"""
@@ -69,26 +69,12 @@ def chat(session_id):
                 # Traitement selon le type de fichier
                 if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
                     message_type = "image"
-                    # Analyser l'image locale
                     import base64
                     with open(filepath, 'rb') as img_file:
                         image_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-                    
-                    from services.gpt_service import client
-                    gpt_response = client.chat.completions.create(
-                        model="gpt-4o",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "text", "text": "Décris cette image en détail."},
-                                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
-                                ]
-                            }
-                        ],
-                        max_tokens=800
-                    )
-                    response_text = gpt_response.choices[0].message.content.strip()
+                    from services.gpt_service import analyze_image_base64
+                    prompt = message if message else "Décris cette image en détail."
+                    response_text = analyze_image_base64(image_base64, prompt)
                     question = f"Image: {filename}" + (f" + Question: {message}" if message else "")
                     
                 elif filename.lower().endswith('.pdf'):
@@ -153,6 +139,17 @@ def new_chat():
     user_id = session['user_id']
     session_id = create_chat_session(user_id)
     return redirect(f'/chat/{session_id}')
+
+@web_bp.route('/delete-session/<session_id>', methods=['POST'])
+@login_required
+def delete_session(session_id):
+    """Supprime une session de chat"""
+    user_id = session['user_id']
+    try:
+        delete_chat_session(user_id, session_id)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @web_bp.route('/history')
 @login_required

@@ -13,12 +13,13 @@ load_dotenv()
 
 whatsapp_bp = Blueprint('whatsapp', __name__)
 
-# Configuration Twilio
-TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
-
-client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+# Configuration Twilio (lazy init pour éviter crash si variables absentes)
+def get_twilio_client():
+    sid = os.getenv('TWILIO_ACCOUNT_SID')
+    token = os.getenv('TWILIO_AUTH_TOKEN')
+    if sid and token:
+        return Client(sid, token)
+    return None
 
 @whatsapp_bp.route('/whatsapp', methods=['POST'])
 def whatsapp_webhook():
@@ -88,7 +89,6 @@ def whatsapp_webhook():
         return str(twiml_response)
     
     except Exception as e:
-        # En cas d'erreur, renvoyer un message d'erreur
         twiml_response = MessagingResponse()
-        twiml_response.message(f"Erreur: {str(e)}")
+        twiml_response.message("Désolé, une erreur est survenue. Veuillez réessayer dans quelques instants. — Cognito Chat")
         return str(twiml_response)

@@ -342,8 +342,19 @@ def reset_user_password(user_id, new_password_hash):
     """Réinitialise le mot de passe d'un utilisateur"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    
+
     cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_password_hash, user_id))
-    
+
+    conn.commit()
+    conn.close()
+
+def delete_chat_session(user_id, session_id):
+    """Supprime une session de chat et ses messages (appartenant à l'utilisateur)"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute('DELETE FROM conversations WHERE session_id = ?', (session_id,))
+    cursor.execute('DELETE FROM chat_sessions WHERE id = ? AND user_id = ?', (session_id, user_id))
+
     conn.commit()
     conn.close()

@@ -1,247 +1,427 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - Cognito Chat</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>Connexion — Cognito Chat</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f7f7f8;
-            --text-primary: #2d333a;
-            --text-secondary: #6e7681;
-            --border-color: #e3e3e3;
-            --accent-color: #10a37f;
-            --error-color: #ef4444;
-            --success-color: #22c55e;
+            --bg: #f0f4ff;
+            --surface: #ffffff;
+            --border: rgba(99, 102, 241, 0.15);
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --accent: #6366f1;
+            --accent-2: #06b6d4;
+            --gradient: linear-gradient(135deg, #6366f1, #06b6d4);
+            --shadow: 0 8px 40px rgba(99, 102, 241, 0.15);
+            --input-bg: #f8faff;
+            --error-bg: #fef2f2;
+            --error-color: #dc2626;
+            --error-border: #fecaca;
+            --success-bg: #f0fdf4;
+            --success-color: #16a34a;
+            --success-border: #bbf7d0;
         }
-        
         [data-theme="dark"] {
-            --bg-primary: #212121;
-            --bg-secondary: #2f2f2f;
-            --text-primary: #ececf1;
-            --text-secondary: #c5c5d2;
-            --border-color: #4d4d4f;
-            --accent-color: #19c37d;
+            --bg: #06080f;
+            --surface: rgba(255,255,255,0.04);
+            --border: rgba(99, 102, 241, 0.2);
+            --text: #e2e8f0;
+            --text-muted: #6b7a99;
+            --accent: #818cf8;
+            --accent-2: #22d3ee;
+            --gradient: linear-gradient(135deg, #818cf8, #22d3ee);
+            --shadow: 0 8px 60px rgba(0,0,0,0.6);
+            --input-bg: rgba(255,255,255,0.04);
+            --error-bg: rgba(220,38,38,0.1);
+            --error-color: #f87171;
+            --error-border: rgba(220,38,38,0.3);
+            --success-bg: rgba(22,163,74,0.1);
+            --success-color: #4ade80;
+            --success-border: rgba(22,163,74,0.3);
         }
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            position: relative;
+            overflow: hidden;
         }
-        
-        .auth-container {
-            background: var(--bg-primary);
-            border-radius: 16px;
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+
+        /* Animated background */
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            animation: orbFloat 8s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 0;
         }
-        
-        .auth-header {
-            text-align: center;
-            margin-bottom: 32px;
+        .bg-orb-1 {
+            width: 500px; height: 500px;
+            background: rgba(99, 102, 241, 0.12);
+            top: -150px; left: -150px;
         }
-        
-        .auth-header h1 {
-            color: var(--text-primary);
-            font-size: 28px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
+        .bg-orb-2 {
+            width: 400px; height: 400px;
+            background: rgba(6, 182, 212, 0.1);
+            bottom: -100px; right: -100px;
+            animation-delay: -4s;
         }
-        
-        .auth-header p {
-            color: var(--text-secondary);
-            font-size: 16px;
+        .bg-orb-3 {
+            width: 250px; height: 250px;
+            background: rgba(139, 92, 246, 0.08);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation-delay: -2s;
         }
-        
-        .form-group {
-            margin-bottom: 20px;
+        @keyframes orbFloat {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-30px) scale(1.05); }
         }
-        
-        .form-label {
-            display: block;
-            color: var(--text-primary);
-            font-weight: 500;
-            margin-bottom: 8px;
-            font-size: 14px;
+
+        /* Grid overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: 0;
         }
-        
-        .form-input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 16px;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            transition: border-color 0.2s ease;
-        }
-        
-        .form-input:focus {
-            outline: none;
-            border-color: var(--accent-color);
-        }
-        
-        .btn-primary {
-            width: 100%;
-            background: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            margin-bottom: 16px;
-        }
-        
-        .btn-primary:hover {
-            background: #0d8f6f;
-            transform: translateY(-1px);
-        }
-        
-        .auth-link {
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
-        
-        .auth-link a {
-            color: var(--accent-color);
-            text-decoration: none;
-            font-weight: 500;
-        }
-        
-        .auth-link a:hover {
-            text-decoration: underline;
-        }
-        
-        .alert {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        
-        .alert-error {
-            background: #fef2f2;
-            color: #dc2626;
-            border: 1px solid #fecaca;
-        }
-        
-        .alert-success {
-            background: #f0fdf4;
-            color: #16a34a;
-            border: 1px solid #bbf7d0;
-        }
-        
+
         .theme-toggle {
-            position: absolute;
+            position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
+            background: var(--surface);
+            border: 1px solid var(--border);
             border-radius: 50%;
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            color: white;
+            color: var(--text-muted);
+            backdrop-filter: blur(12px);
             transition: all 0.2s ease;
+            z-index: 10;
         }
-        
-        .theme-toggle:hover {
-            background: rgba(255,255,255,0.3);
+        .theme-toggle:hover { color: var(--accent); border-color: var(--accent); }
+
+        .auth-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(20px);
+            position: relative;
+            z-index: 1;
+            animation: cardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
         }
+        @keyframes cardIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Glowing top border */
+        .auth-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 20%; right: 20%;
+            height: 1px;
+            background: var(--gradient);
+            border-radius: 0 0 4px 4px;
+            opacity: 0.7;
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+
+        .brand-logo {
+            width: 64px;
+            height: 64px;
+            background: var(--gradient);
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 26px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.35);
+            position: relative;
+        }
+        .brand-logo::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 20px;
+            background: var(--gradient);
+            z-index: -1;
+            filter: blur(8px);
+            opacity: 0.5;
+        }
+
+        .brand-name {
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+            margin-bottom: 4px;
+        }
+
+        .brand-tagline {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+        .section-sub {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 7px;
+            letter-spacing: 0.3px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 14px 12px 40px;
+            background: var(--input-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            color: var(--text);
+            transition: all 0.2s ease;
+            outline: none;
+        }
+        .form-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+        .form-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+            background: var(--surface);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 13px 20px;
+            background: var(--gradient);
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0);
+            transition: background 0.2s ease;
+        }
+        .btn-primary:hover::before { background: rgba(255,255,255,0.1); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(99,102,241,0.35); }
+        .btn-primary:active { transform: translateY(0); }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        .divider span {
+            font-size: 12px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .auth-footer {
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        .auth-footer a {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 500;
+            transition: opacity 0.2s;
+        }
+        .auth-footer a:hover { opacity: 0.8; text-decoration: underline; }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alert-error {
+            background: var(--error-bg);
+            color: var(--error-color);
+            border: 1px solid var(--error-border);
+        }
+        .alert-success {
+            background: var(--success-bg);
+            color: var(--success-color);
+            border: 1px solid var(--success-border);
+        }
+
+        .powered-by {
+            text-align: center;
+            margin-top: 32px;
+            font-size: 11px;
+            color: var(--text-muted);
+            opacity: 0.6;
+        }
+        .powered-by strong { opacity: 0.9; }
     </style>
 </head>
 <body>
-    <button class="theme-toggle" id="theme-toggle">
-        <i class="fas fa-moon" id="theme-icon"></i>
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+
+    <button class="theme-toggle" id="theme-toggle" title="Changer le thème">
+        <i class="fas fa-sun" id="theme-icon"></i>
     </button>
-    
-    <div class="auth-container">
-        <div class="auth-header">
-            <h1>
-                <i class="fas fa-robot"></i>
-                Cognito Chat
-            </h1>
-            <p>Connectez-vous à votre compte</p>
+
+    <div class="auth-card">
+        <div class="brand">
+            <div class="brand-logo">
+                <i class="fas fa-brain"></i>
+            </div>
+            <div class="brand-name">Cognito Chat</div>
+            <div class="brand-tagline">Assistant intelligent · Cognito Inc.</div>
         </div>
-        
+
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
                     <div class="alert alert-{{ 'error' if category == 'error' else 'success' }}">
+                        <i class="fas fa-{{ 'exclamation-circle' if category == 'error' else 'check-circle' }}"></i>
                         {{ message }}
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        
+
+        <div class="section-title">Bon retour 👋</div>
+        <div class="section-sub">Connectez-vous à votre espace Cognito</div>
+
         <form method="POST">
             <div class="form-group">
-                <label class="form-label" for="email">Email</label>
-                <input type="email" id="email" name="email" class="form-input" required>
+                <label class="form-label" for="email">Adresse email</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-envelope input-icon"></i>
+                    <input type="email" id="email" name="email" class="form-input" placeholder="vous@exemple.com" required autocomplete="email">
+                </div>
             </div>
-            
+
             <div class="form-group">
                 <label class="form-label" for="password">Mot de passe</label>
-                <input type="password" id="password" name="password" class="form-input" required>
+                <div class="input-wrapper">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" id="password" name="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+                </div>
             </div>
-            
+
             <button type="submit" class="btn-primary">
+                <i class="fas fa-arrow-right-to-bracket" style="margin-right:8px;"></i>
                 Se connecter
             </button>
         </form>
-        
-        <div class="auth-link">
-            Pas encore de compte ? <a href="{{ url_for('auth.register') }}">S'inscrire</a>
+
+        <div class="divider"><span>ou</span></div>
+
+        <div class="auth-footer">
+            Pas encore de compte ?
+            <a href="{{ url_for('auth.register') }}">Créer un compte</a>
         </div>
+
+        <div class="powered-by">Propulsé par <strong>Cognito Inc.</strong> · Créé par Jonathan Kakesa</div>
     </div>
 
     <script>
-        // Theme management
         function initTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-theme', savedTheme);
-            updateThemeIcon(savedTheme);
+            const saved = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
+            document.getElementById('theme-icon').className = saved === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
         }
-        
-        function toggleTheme() {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
-            updateThemeIcon(newTheme);
-        }
-        
-        function updateThemeIcon(theme) {
-            document.getElementById('theme-icon').className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
-        }
-        
-        document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+        document.getElementById('theme-toggle').addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.getElementById('theme-icon').className = next === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+        });
         initTheme();
     </script>
 </body>

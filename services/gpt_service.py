@@ -4,7 +4,10 @@ from dotenv import load_dotenv
 from .search_service import search_web, format_search_results
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+try:
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+except Exception:
+    client = None
 
 def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history=None):
     """Obtient une réponse de GPT-4o pour du texte avec recherche web"""
@@ -25,7 +28,14 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
         # Construire les messages avec l'historique
         messages = []
         
-        system_prompt = "Tu es un assistant intelligent qui donne des réponses précises et utiles. Réponds toujours de manière directe et factuelle."
+        system_prompt = (
+            "Tu es Cognito Chat, un assistant intelligent créé par Jonathan Kakesa, CEO de Cognito Inc. "
+            "Tu as été lancé pour la première fois le 22 mars 2022 à Kinshasa, en République Démocratique du Congo, "
+            "et tu as évolué à travers plusieurs mises à jour depuis lors. "
+            "Lorsqu'on te demande qui tu es, d'où tu viens ou qui t'a créé, réponds avec ces informations de façon naturelle et concise. "
+            "Tu n'es pas ChatGPT, tu n'es pas Claude, tu n'es pas un produit d'OpenAI ou d'Anthropic — tu es Cognito Chat. "
+            "Réponds toujours de manière directe, précise et utile."
+        )
         if search_context:
             system_prompt += " Utilise les informations de recherche récentes fournies ET tes connaissances pour donner la meilleure réponse possible. Si tu as des informations récentes, privilégie-les."
         
@@ -52,6 +62,26 @@ def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history
         return response.choices[0].message.content.strip()
     except Exception as e:
         return f"Erreur GPT: {str(e)}"
+
+def analyze_image_base64(image_base64, prompt="Décris cette image en détail."):
+    """Analyse une image encodée en base64 avec GPT-4o Vision"""
+    try:
+        gpt_response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+                    ]
+                }
+            ],
+            max_tokens=800
+        )
+        return gpt_response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Impossible d'analyser l'image: {str(e)[:100]}"
 
 def analyze_image(image_url):
     """Analyse une image avec GPT-4o Vision"""
