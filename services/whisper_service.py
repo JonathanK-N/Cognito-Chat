@@ -5,7 +5,10 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+try:
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+except Exception:
+    client = None
 
 def transcribe_audio_from_url(audio_url):
     """Transcrit un fichier audio depuis une URL"""

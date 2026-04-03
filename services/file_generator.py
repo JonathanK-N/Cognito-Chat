@@ -1,205 +1,167 @@
 """
-file_generator.py — Génération de fichiers PDF et Word à partir de contenu texte/markdown
+file_generator.py — Génération de fichiers PDF, Word et PowerPoint
 """
 import io
 import re
 
 
+# ── Utilitaires texte ─────────────────────────────────────────────────────────
+
 def sanitize_for_pdf(text):
-    """Remplace les caractères Unicode non supportés par Helvetica par leurs équivalents ASCII"""
+    """Remplace les caractères Unicode non supportés par Helvetica"""
     replacements = {
-        '\u2014': '-',   # em dash —
-        '\u2013': '-',   # en dash –
-        '\u2012': '-',   # figure dash
-        '\u2015': '-',   # horizontal bar
-        '\u2018': "'",   # ' guillemet simple gauche
-        '\u2019': "'",   # ' guillemet simple droit
-        '\u201a': ',',   # ‚
-        '\u201b': "'",   # ‛
-        '\u201c': '"',   # " guillemet double gauche
-        '\u201d': '"',   # " guillemet double droit
-        '\u201e': '"',   # „
-        '\u201f': '"',   # ‟
-        '\u00ab': '<<',  # «
-        '\u00bb': '>>',  # »
-        '\u2026': '...', # … ellipse
-        '\u00a0': ' ',   # espace insécable
-        '\u2022': '-',   # • puce
-        '\u25cf': '-',   # ● cercle plein
-        '\u2192': '->',  # →
-        '\u2190': '<-',  # ←
-        '\u2665': '<3',  # ♥
-        '\u00b7': '-',   # ·
-        '\u00d7': 'x',   # ×
-        '\u00f7': '/',   # ÷
-        '\u00ae': '(R)', # ®
-        '\u00a9': '(C)', # ©
-        '\u2122': '(TM)',# ™
-        '\u20ac': 'EUR', # €
-        '\u00e0': 'a',   # à
-        '\u00e2': 'a',   # â
-        '\u00e4': 'a',   # ä
-        '\u00e7': 'c',   # ç
-        '\u00e8': 'e',   # è
-        '\u00e9': 'e',   # é
-        '\u00ea': 'e',   # ê
-        '\u00eb': 'e',   # ë
-        '\u00ee': 'i',   # î
-        '\u00ef': 'i',   # ï
-        '\u00f4': 'o',   # ô
-        '\u00f6': 'o',   # ö
-        '\u00f9': 'u',   # ù
-        '\u00fb': 'u',   # û
-        '\u00fc': 'u',   # ü
-        '\u00ff': 'y',   # ÿ
-        '\u00c0': 'A',   # À
-        '\u00c2': 'A',   # Â
-        '\u00c7': 'C',   # Ç
-        '\u00c8': 'E',   # È
-        '\u00c9': 'E',   # É
-        '\u00ca': 'E',   # Ê
-        '\u00ce': 'I',   # Î
-        '\u00d4': 'O',   # Ô
-        '\u00d9': 'U',   # Ù
-        '\u00db': 'U',   # Û
-        '\u00dc': 'U',   # Ü
-        '\u0153': 'oe',  # œ
-        '\u0152': 'OE',  # Œ
-        '\u00e6': 'ae',  # æ
-        '\u00c6': 'AE',  # Æ
-        '\u00df': 'ss',  # ß
-        '\u00f1': 'n',   # ñ
-        '\u00e1': 'a',   # á
-        '\u00e3': 'a',   # ã
-        '\u00e5': 'a',   # å
-        '\u00ed': 'i',   # í
-        '\u00f3': 'o',   # ó
-        '\u00fa': 'u',   # ú
-        '\u00fd': 'y',   # ý
+        '\u2014': '-', '\u2013': '-', '\u2012': '-', '\u2015': '-',
+        '\u2018': "'", '\u2019': "'", '\u201a': ',', '\u201b': "'",
+        '\u201c': '"', '\u201d': '"', '\u201e': '"', '\u201f': '"',
+        '\u00ab': '"', '\u00bb': '"',
+        '\u2026': '...', '\u00a0': ' ', '\u2022': '-', '\u25cf': '-',
+        '\u2192': '->', '\u2190': '<-', '\u00b7': '-',
+        '\u00d7': 'x', '\u00f7': '/', '\u00ae': '(R)', '\u00a9': '(C)',
+        '\u2122': '(TM)', '\u20ac': 'EUR',
+        '\u00e0': 'a', '\u00e2': 'a', '\u00e4': 'a', '\u00e7': 'c',
+        '\u00e8': 'e', '\u00e9': 'e', '\u00ea': 'e', '\u00eb': 'e',
+        '\u00ee': 'i', '\u00ef': 'i', '\u00f4': 'o', '\u00f6': 'o',
+        '\u00f9': 'u', '\u00fb': 'u', '\u00fc': 'u', '\u00ff': 'y',
+        '\u00c0': 'A', '\u00c2': 'A', '\u00c7': 'C', '\u00c8': 'E',
+        '\u00c9': 'E', '\u00ca': 'E', '\u00ce': 'I', '\u00d4': 'O',
+        '\u00d9': 'U', '\u00db': 'U', '\u00dc': 'U',
+        '\u0153': 'oe', '\u0152': 'OE', '\u00e6': 'ae', '\u00c6': 'AE',
+        '\u00df': 'ss', '\u00f1': 'n', '\u00e1': 'a', '\u00e3': 'a',
+        '\u00e5': 'a', '\u00ed': 'i', '\u00f3': 'o', '\u00fa': 'u',
+        '\u00fd': 'y',
     }
-    for char, replacement in replacements.items():
-        text = text.replace(char, replacement)
-    # Remplacer tout caractère restant hors ASCII par '?'
-    text = text.encode('ascii', errors='replace').decode('ascii')
-    return text
+    for char, rep in replacements.items():
+        text = text.replace(char, rep)
+    return text.encode('ascii', errors='replace').decode('ascii')
+
 
 def markdown_to_plain(text):
-    """Convertit du markdown en texte propre pour les fichiers générés"""
-    # Supprimer les blocs de code (garder le contenu)
+    """Markdown → texte brut ASCII pour PDF"""
     text = re.sub(r'```[\w]*\n?', '', text)
-    # Titres → texte en majuscules
     text = re.sub(r'^#{1,6}\s+(.+)$', r'\1', text, flags=re.MULTILINE)
-    # Gras/italique
     text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
     text = re.sub(r'\*(.+?)\*', r'\1', text)
     text = re.sub(r'__(.+?)__', r'\1', text)
-    # Liens
     text = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', text)
-    # Listes
-    text = re.sub(r'^\s*[-*+]\s+', '- ', text, flags=re.MULTILINE)
+    text = re.sub(r'^\s*[-*+\u2022]\s+', '- ', text, flags=re.MULTILINE)
     text = re.sub(r'^\s*\d+\.\s+', '', text, flags=re.MULTILINE)
     return sanitize_for_pdf(text.strip())
 
 
 def parse_sections(content):
-    """Découpe le contenu en sections (titre + corps) selon les headers markdown"""
+    """Découpe le contenu markdown en sections (titre, corps)"""
     sections = []
     current_title = None
     current_body = []
-
     for line in content.split('\n'):
-        heading = re.match(r'^(#{1,6})\s+(.+)$', line)
-        if heading:
+        m = re.match(r'^(#{1,6})\s+(.+)$', line)
+        if m:
             if current_body or current_title:
                 sections.append((current_title, '\n'.join(current_body).strip()))
-            current_title = heading.group(2).strip()
+            current_title = m.group(2).strip()
             current_body = []
         else:
             current_body.append(line)
-
     if current_body or current_title:
         sections.append((current_title, '\n'.join(current_body).strip()))
-
     return sections if sections else [(None, content)]
 
 
-# ── PDF ──────────────────────────────────────────────────────────────────────
+def strip_markdown(text):
+    """Supprime uniquement le markdown de formatage (gras, italique, titres)"""
+    text = re.sub(r'#{1,6}\s+', '', text)
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.+?)\*', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
+    return text.strip()
+
+
+# ── PDF ───────────────────────────────────────────────────────────────────────
 
 def generate_pdf(content, title="Document Cognito Chat"):
-    """Génère un PDF et retourne les bytes"""
     from fpdf import FPDF
 
     class PDF(FPDF):
         def header(self):
-            self.set_font('Helvetica', 'B', 10)
-            self.set_text_color(99, 102, 241)
-            self.cell(0, 8, 'Cognito Chat - Cognito Inc.', align='R')
-            self.ln(4)
+            # Ligne fine en haut
             self.set_draw_color(99, 102, 241)
             self.set_line_width(0.3)
-            self.line(10, self.get_y(), 200, self.get_y())
-            self.ln(4)
+            self.line(10, 8, 200, 8)
+            # Texte à droite sur la même ligne
+            self.set_font('Helvetica', 'I', 8)
+            self.set_text_color(150, 150, 170)
+            self.set_y(4)
+            self.cell(0, 6, 'Cognito Chat - Cognito Inc.', align='R')
+            self.ln(8)
 
         def footer(self):
-            self.set_y(-15)
+            self.set_y(-12)
+            self.set_draw_color(99, 102, 241)
+            self.set_line_width(0.2)
+            self.line(10, self.get_y(), 200, self.get_y())
             self.set_font('Helvetica', 'I', 8)
-            self.set_text_color(150, 150, 150)
-            self.cell(0, 10, f'Page {self.page_no()}', align='C')
+            self.set_text_color(150, 150, 170)
+            self.cell(0, 8, f'Page {self.page_no()}', align='C')
 
     pdf = PDF()
-    pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.set_auto_page_break(auto=True, margin=18)
     pdf.add_page()
-    pdf.set_margins(15, 15, 15)
+    pdf.set_margins(15, 18, 15)
 
     # Titre principal
-    pdf.set_font('Helvetica', 'B', 18)
-    pdf.set_text_color(99, 102, 241)
-    clean_title = markdown_to_plain(title)
-    pdf.multi_cell(0, 10, clean_title, align='C')
-    pdf.ln(6)
+    clean_title = sanitize_for_pdf(strip_markdown(title))
+    pdf.set_font('Helvetica', 'B', 20)
+    pdf.set_text_color(60, 60, 180)
+    pdf.multi_cell(0, 11, clean_title, align='C')
+    pdf.ln(4)
 
-    # Ligne de séparation
+    # Ligne de séparation sous le titre
     pdf.set_draw_color(99, 102, 241)
-    pdf.set_line_width(0.5)
+    pdf.set_line_width(0.6)
     pdf.line(15, pdf.get_y(), 195, pdf.get_y())
     pdf.ln(8)
 
     sections = parse_sections(content)
 
     for sec_title, sec_body in sections:
-        # Titre de section
         if sec_title:
             pdf.set_font('Helvetica', 'B', 13)
-            pdf.set_text_color(30, 30, 50)
-            pdf.multi_cell(0, 7, markdown_to_plain(sec_title))
-            pdf.ln(2)
+            pdf.set_text_color(40, 40, 120)
+            pdf.multi_cell(0, 7, sanitize_for_pdf(strip_markdown(sec_title)))
+            pdf.set_draw_color(200, 200, 240)
+            pdf.set_line_width(0.2)
+            pdf.line(15, pdf.get_y(), 195, pdf.get_y())
+            pdf.ln(3)
 
-        # Corps — ligne par ligne
         pdf.set_font('Helvetica', '', 11)
-        pdf.set_text_color(40, 40, 60)
+        pdf.set_text_color(30, 30, 50)
 
         for line in sec_body.split('\n'):
             line = line.rstrip()
             if not line:
-                pdf.ln(3)
+                pdf.ln(2)
                 continue
-
-            # Ligne de code
+            # Bloc de code
             if line.startswith('    ') or line.startswith('\t'):
                 pdf.set_font('Courier', '', 9)
                 pdf.set_fill_color(240, 242, 255)
-                pdf.multi_cell(0, 5, line.strip(), fill=True)
+                pdf.multi_cell(0, 5, sanitize_for_pdf(line.strip()), fill=True)
                 pdf.set_font('Helvetica', '', 11)
                 continue
-
-            # Élément de liste
+            # Liste
             if re.match(r'^\s*[-*+\u2022]\s+', line):
                 clean = re.sub(r'^\s*[-*+\u2022]\s+', '', line)
                 pdf.set_x(20)
-                pdf.cell(5, 6, '-')
+                pdf.cell(4, 6, '-')
                 pdf.multi_cell(0, 6, markdown_to_plain(clean))
                 continue
-
+            # Liste numérotée
+            m = re.match(r'^\s*(\d+)\.\s+(.+)$', line)
+            if m:
+                pdf.set_x(20)
+                pdf.cell(6, 6, m.group(1) + '.')
+                pdf.multi_cell(0, 6, markdown_to_plain(m.group(2)))
+                continue
             # Texte normal
             pdf.multi_cell(0, 6, markdown_to_plain(line))
 
@@ -208,86 +170,71 @@ def generate_pdf(content, title="Document Cognito Chat"):
     return bytes(pdf.output())
 
 
-# ── WORD ─────────────────────────────────────────────────────────────────────
+# ── WORD ──────────────────────────────────────────────────────────────────────
 
 def generate_word(content, title="Document Cognito Chat"):
-    """Génère un fichier .docx et retourne les bytes"""
     from docx import Document
-    from docx.shared import Pt, RGBColor, Inches, Cm
+    from docx.shared import Pt, RGBColor, Cm
     from docx.enum.text import WD_ALIGN_PARAGRAPH
 
     doc = Document()
 
-    # Marges
     for section in doc.sections:
-        section.top_margin = Cm(2)
+        section.top_margin = Cm(2.5)
         section.bottom_margin = Cm(2)
         section.left_margin = Cm(2.5)
         section.right_margin = Cm(2.5)
 
     # En-tête
-    header = doc.sections[0].header
-    hp = header.paragraphs[0]
-    hp.text = 'Cognito Chat — Cognito Inc.'
+    hdr = doc.sections[0].header
+    hp = hdr.paragraphs[0]
+    hp.text = 'Cognito Chat - Cognito Inc.'
     hp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-    hp.runs[0].font.size = Pt(9)
-    hp.runs[0].font.color.rgb = RGBColor(99, 102, 241)
-    hp.runs[0].font.italic = True
+    run = hp.runs[0]
+    run.font.size = Pt(8)
+    run.font.color.rgb = RGBColor(150, 150, 170)
+    run.font.italic = True
 
-    # Titre principal
+    # Titre
     title_para = doc.add_paragraph()
     title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run = title_para.add_run(markdown_to_plain(title))
-    run.font.size = Pt(20)
-    run.font.bold = True
-    run.font.color.rgb = RGBColor(99, 102, 241)
+    tr = title_para.add_run(strip_markdown(title))
+    tr.font.size = Pt(22)
+    tr.font.bold = True
+    tr.font.color.rgb = RGBColor(60, 60, 180)
+    doc.add_paragraph()
 
-    doc.add_paragraph()  # espace
-
-    sections = parse_sections(content)
-
-    for sec_title, sec_body in sections:
-        # Titre de section
+    for sec_title, sec_body in parse_sections(content):
         if sec_title:
-            heading = doc.add_heading(markdown_to_plain(sec_title), level=2)
-            heading.runs[0].font.color.rgb = RGBColor(30, 30, 80)
+            h = doc.add_heading(strip_markdown(sec_title), level=2)
+            for run in h.runs:
+                run.font.color.rgb = RGBColor(40, 40, 120)
 
-        # Corps
         for line in sec_body.split('\n'):
             line = line.rstrip()
             if not line:
                 continue
-
-            # Ligne de code
             if line.startswith('    ') or line.startswith('\t'):
                 p = doc.add_paragraph(line.strip(), style='No Spacing')
                 p.runs[0].font.name = 'Courier New'
                 p.runs[0].font.size = Pt(9)
                 continue
-
-            # Liste
-            if re.match(r'^\s*[-*+•]\s+', line):
-                clean = re.sub(r'^\s*[-*+•]\s+', '', line)
-                doc.add_paragraph(markdown_to_plain(clean), style='List Bullet')
+            if re.match(r'^\s*[-*+\u2022]\s+', line):
+                clean = re.sub(r'^\s*[-*+\u2022]\s+', '', line)
+                doc.add_paragraph(strip_markdown(clean), style='List Bullet')
                 continue
-
-            # Liste numérotée
             if re.match(r'^\s*\d+\.\s+', line):
                 clean = re.sub(r'^\s*\d+\.\s+', '', line)
-                doc.add_paragraph(markdown_to_plain(clean), style='List Number')
+                doc.add_paragraph(strip_markdown(clean), style='List Number')
                 continue
-
-            # Texte normal
             p = doc.add_paragraph()
-            cleaned = markdown_to_plain(line)
-            # Gras inline
             parts = re.split(r'\*\*(.+?)\*\*', line)
             if len(parts) > 1:
                 for i, part in enumerate(parts):
-                    run = p.add_run(markdown_to_plain(part))
-                    run.bold = (i % 2 == 1)
+                    r = p.add_run(part)
+                    r.bold = (i % 2 == 1)
             else:
-                p.add_run(cleaned)
+                p.add_run(strip_markdown(line))
 
     buf = io.BytesIO()
     doc.save(buf)
@@ -295,41 +242,207 @@ def generate_word(content, title="Document Cognito Chat"):
     return buf.read()
 
 
-# ── Détection de demande ─────────────────────────────────────────────────────
+# ── POWERPOINT ────────────────────────────────────────────────────────────────
+
+def generate_pptx(content, title="Présentation Cognito Chat"):
+    from pptx import Presentation
+    from pptx.util import Inches, Pt, Emu
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
+
+    prs = Presentation()
+    prs.slide_width = Inches(13.33)
+    prs.slide_height = Inches(7.5)
+
+    PURPLE = RGBColor(99, 102, 241)
+    CYAN   = RGBColor(6, 182, 212)
+    WHITE  = RGBColor(255, 255, 255)
+    DARK   = RGBColor(15, 23, 42)
+    LIGHT  = RGBColor(226, 232, 240)
+
+    def set_bg(slide, color):
+        from pptx.util import Pt
+        fill = slide.background.fill
+        fill.solid()
+        fill.fore_color.rgb = color
+
+    def add_text_box(slide, text, left, top, width, height,
+                     font_size=18, bold=False, color=WHITE,
+                     align=PP_ALIGN.LEFT, italic=False):
+        txBox = slide.shapes.add_textbox(left, top, width, height)
+        tf = txBox.text_frame
+        tf.word_wrap = True
+        p = tf.paragraphs[0]
+        p.alignment = align
+        run = p.add_run()
+        run.text = strip_markdown(text)
+        run.font.size = Pt(font_size)
+        run.font.bold = bold
+        run.font.italic = italic
+        run.font.color.rgb = color
+        return txBox
+
+    # ── Slide 1 : titre ──
+    slide_layout = prs.slide_layouts[6]  # blank
+    slide = prs.slides.add_slide(slide_layout)
+    set_bg(slide, DARK)
+
+    # Bande de couleur en haut
+    from pptx.util import Inches
+    shape = slide.shapes.add_shape(
+        1,  # MSO_SHAPE_TYPE.RECTANGLE
+        0, 0, prs.slide_width, Inches(0.08)
+    )
+    shape.fill.solid()
+    shape.fill.fore_color.rgb = PURPLE
+    shape.line.fill.background()
+
+    # Titre principal
+    add_text_box(slide, strip_markdown(title),
+                 Inches(1), Inches(2.5), Inches(11.33), Inches(1.5),
+                 font_size=40, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+
+    # Sous-titre
+    add_text_box(slide, 'Cognito Chat - Cognito Inc.',
+                 Inches(1), Inches(4.2), Inches(11.33), Inches(0.6),
+                 font_size=16, color=LIGHT, align=PP_ALIGN.CENTER, italic=True)
+
+    # Ligne décorative
+    line = slide.shapes.add_shape(1, Inches(3), Inches(4.0), Inches(7.33), Inches(0.04))
+    line.fill.solid()
+    line.fill.fore_color.rgb = PURPLE
+    line.line.fill.background()
+
+    # ── Slides de contenu ──
+    sections = parse_sections(content)
+
+    for sec_title, sec_body in sections:
+        if not sec_title and not sec_body.strip():
+            continue
+
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        set_bg(slide, DARK)
+
+        # Bande titre en haut
+        banner = slide.shapes.add_shape(1, 0, 0, prs.slide_width, Inches(1.2))
+        banner.fill.solid()
+        banner.fill.fore_color.rgb = RGBColor(20, 20, 50)
+        banner.line.fill.background()
+
+        # Accent gauche
+        accent = slide.shapes.add_shape(1, 0, 0, Inches(0.08), Inches(1.2))
+        accent.fill.solid()
+        accent.fill.fore_color.rgb = PURPLE
+        accent.line.fill.background()
+
+        # Titre de la slide
+        display_title = strip_markdown(sec_title) if sec_title else 'Contenu'
+        add_text_box(slide, display_title,
+                     Inches(0.3), Inches(0.1), Inches(12.5), Inches(1.0),
+                     font_size=28, bold=True, color=WHITE)
+
+        # Corps — points clés
+        bullets = []
+        for line in sec_body.split('\n'):
+            line = line.rstrip()
+            if not line:
+                continue
+            clean = re.sub(r'^\s*[-*+\u2022\d+\.]\s*', '', line).strip()
+            clean = strip_markdown(clean)
+            if clean:
+                bullets.append(clean)
+
+        if bullets:
+            from pptx.util import Pt as PPt
+            txBox = slide.shapes.add_textbox(Inches(0.5), Inches(1.4), Inches(12.3), Inches(5.8))
+            tf = txBox.text_frame
+            tf.word_wrap = True
+            for i, bullet in enumerate(bullets[:8]):  # max 8 points par slide
+                p = tf.add_paragraph() if i > 0 else tf.paragraphs[0]
+                p.alignment = PP_ALIGN.LEFT
+                p.level = 0
+                run = p.add_run()
+                run.text = ('• ' if not re.match(r'^\d', bullet) else '') + bullet
+                run.font.size = PPt(18)
+                run.font.color.rgb = LIGHT
+                p.space_before = Emu(80000)
+
+        # Footer
+        add_text_box(slide, 'Cognito Chat - Cognito Inc.',
+                     Inches(0), Inches(7.1), Inches(13.33), Inches(0.4),
+                     font_size=8, color=RGBColor(100, 100, 130),
+                     align=PP_ALIGN.RIGHT, italic=True)
+
+    # ── Slide finale ──
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    set_bg(slide, DARK)
+    banner = slide.shapes.add_shape(1, 0, 0, prs.slide_width, Inches(0.08))
+    banner.fill.solid()
+    banner.fill.fore_color.rgb = PURPLE
+    banner.line.fill.background()
+    add_text_box(slide, 'Merci',
+                 Inches(1), Inches(3.0), Inches(11.33), Inches(1.0),
+                 font_size=48, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
+    add_text_box(slide, 'Cognito Chat - Cognito Inc.',
+                 Inches(1), Inches(4.2), Inches(11.33), Inches(0.5),
+                 font_size=16, color=LIGHT, align=PP_ALIGN.CENTER, italic=True)
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+
+# ── Détection de demande de fichier ──────────────────────────────────────────
 
 def should_generate_file(text):
     """
-    Retourne ('pdf', prompt) ou ('word', prompt) ou (None, None)
+    Retourne ('pdf'|'word'|'pptx', sujet) ou (None, None)
     """
     text_lower = text.lower()
 
     action_words = [
         'génère', 'genere', 'générer', 'generer', 'crée', 'cree', 'créer', 'creer',
         'fais', 'faire', 'produis', 'produire', 'rédige', 'redige', 'écris', 'ecris',
-        'generate', 'create', 'make', 'write', 'produce'
+        'donne', 'donner', 'fais-moi', 'fais moi', 'donne-moi', 'donne moi',
+        'generate', 'create', 'make', 'write', 'produce', 'give me'
     ]
     has_action = any(w in text_lower for w in action_words)
 
-    pdf_words = ['pdf', 'fichier pdf', 'document pdf', 'en pdf', 'au format pdf']
-    word_words = ['word', 'docx', 'fichier word', 'document word', 'en word', 'au format word',
-                  'fichier .docx', 'microsoft word']
+    pptx_words = ['powerpoint', 'pptx', '.ppt', 'présentation ppt', 'presentation ppt',
+                  'diaporama', 'slideshow', 'slides', 'présentation powerpoint',
+                  'presentation powerpoint']
+    pdf_words  = ['pdf', 'fichier pdf', 'document pdf', 'en pdf', 'au format pdf', '.pdf']
+    word_words = ['word', 'docx', 'fichier word', 'document word', 'en word',
+                  'au format word', '.docx', 'microsoft word']
 
-    is_pdf = any(w in text_lower for w in pdf_words)
+    is_pptx = any(w in text_lower for w in pptx_words)
+    is_pdf  = any(w in text_lower for w in pdf_words)
     is_word = any(w in text_lower for w in word_words)
 
-    if not (is_pdf or is_word):
+    if not (is_pptx or is_pdf or is_word):
         return None, None
 
-    # Extraire le sujet : retirer les mots de commande et de format
+    # Extraire le sujet en retirant les mots de commande et de format
+    remove_words = [
+        'génère', 'genere', 'crée', 'cree', 'fais moi', 'fais-moi', 'donne moi', 'donne-moi',
+        'un pdf', 'une pdf', 'un word', 'une word', 'un fichier', 'un document',
+        'une presentation', 'une présentation', 'un powerpoint', 'un diaporama',
+        'au format pdf', 'en pdf', 'au format word', 'en word', 'au format ppt',
+        'en ppt', 'en powerpoint', '.pdf', '.docx', '.pptx', '.ppt',
+        'pdf', 'word', 'docx', 'powerpoint', 'pptx', 'diaporama',
+        'avec des images', 'avec images',
+    ]
     subject = text
-    for w in ['génère', 'genere', 'générer', 'crée', 'cree', 'créer', 'fais moi', 'fais-moi',
-              'un pdf', 'une pdf', 'un word', 'une word', 'un fichier', 'un document',
-              'au format pdf', 'en pdf', 'au format word', 'en word', 'pdf', 'word', 'docx']:
-        subject = re.sub(re.escape(w), '', subject, flags=re.IGNORECASE).strip()
-    subject = subject.strip(' ,.-:')
-    if not subject:
+    for w in sorted(remove_words, key=len, reverse=True):
+        subject = re.sub(re.escape(w), ' ', subject, flags=re.IGNORECASE)
+    subject = re.sub(r'\s+', ' ', subject).strip(' ,.-:;?!')
+    subject = strip_markdown(subject)
+    if not subject or len(subject) < 3:
         subject = text
 
+    if is_pptx:
+        return 'pptx', subject
     if is_pdf:
         return 'pdf', subject
     return 'word', subject

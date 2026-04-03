@@ -6,7 +6,7 @@ from services.gpt_service import get_gpt_response, analyze_image, generate_image
 from services.pdf_service import extract_text_from_pdf
 from services.whisper_service import transcribe_audio
 from services.tts_service import text_to_speech
-from services.file_generator import should_generate_file, generate_pdf, generate_word
+from services.file_generator import should_generate_file, generate_pdf, generate_word, generate_pptx
 from database import save_conversation, get_conversations, get_conversation_history, create_chat_session, get_chat_sessions, get_session_messages, update_session_title, get_user_by_id, delete_chat_session
 
 def login_required(f):
@@ -130,9 +130,10 @@ def chat(session_id):
                 if file_type:
                     message_type = f"file_{file_type}"
                     # GPT génère le contenu structuré
+                    fmt_label = {'pdf': 'PDF', 'word': 'Word', 'pptx': 'PowerPoint'}.get(file_type, 'document')
                     gpt_prompt = (
                         f"Génère un contenu complet, bien structuré et professionnel pour un document "
-                        f"{'PDF' if file_type == 'pdf' else 'Word'} sur le sujet suivant : {file_subject}. "
+                        f"{fmt_label} sur le sujet suivant : {file_subject}. "
                         f"Utilise des titres markdown (##), des listes, et un contenu riche. "
                         f"Ne dis pas que tu génères un fichier — fournis directement le contenu du document."
                     )
@@ -228,6 +229,10 @@ def download_file():
             file_bytes = generate_pdf(doc_content, doc_title)
             mimetype = 'application/pdf'
             filename = f"{safe_title}.pdf"
+        elif file_type == 'pptx':
+            file_bytes = generate_pptx(doc_content, doc_title)
+            mimetype = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            filename = f"{safe_title}.pptx"
         else:
             file_bytes = generate_word(doc_content, doc_title)
             mimetype = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'

@@ -13,6 +13,10 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'CognitoChat2024!SecureFlaskKey#WhatsAppBot$RandomString789')
 
+print(f"[STARTUP] PORT={os.environ.get('PORT', 'non défini')}")
+print(f"[STARTUP] OPENAI_API_KEY={'défini' if os.getenv('OPENAI_API_KEY') else 'MANQUANT'}")
+print(f"[STARTUP] TWILIO_ACCOUNT_SID={'défini' if os.getenv('TWILIO_ACCOUNT_SID') else 'MANQUANT'}")
+
 # Initialiser la base de données
 try:
     init_db()

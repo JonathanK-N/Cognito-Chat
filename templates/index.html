@@ -1056,9 +1056,9 @@
                 renderMarkdown(bubble, text);
                 // Bouton de téléchargement PDF/Word
                 if (fileReady) {
-                    const ext = fileReady === 'pdf' ? 'PDF' : 'Word';
-                    const icon = fileReady === 'pdf' ? 'fa-file-pdf' : 'fa-file-word';
-                    const color = fileReady === 'pdf' ? '#ef4444' : '#3b82f6';
+                    const ext = fileReady === 'pdf' ? 'PDF' : fileReady === 'pptx' ? 'PowerPoint' : 'Word';
+                    const icon = fileReady === 'pdf' ? 'fa-file-pdf' : fileReady === 'pptx' ? 'fa-file-powerpoint' : 'fa-file-word';
+                    const color = fileReady === 'pdf' ? '#ef4444' : fileReady === 'pptx' ? '#f97316' : '#3b82f6';
                     const dlWrap = document.createElement('div');
                     dlWrap.style.cssText = 'margin-top:14px;';
                     const dlBtn = document.createElement('a');
