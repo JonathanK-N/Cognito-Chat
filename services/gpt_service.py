@@ -237,6 +237,45 @@ def analyze_image(image_url):
     except Exception as e:
         return f"Impossible d'analyser l'image: {str(e)[:100]}"
 
+def get_voice_response(text, conversation_history=None):
+    """
+    Réponse GPT-4o optimisée pour la synthèse vocale.
+    Ton conversationnel naturel, pas de markdown, phrases courtes.
+    """
+    try:
+        messages = []
+
+        voice_system = (
+            "Tu es Cognito Chat, un assistant intelligent créé par Jonathan Kakesa, CEO de Cognito Inc. "
+            "Tu réponds à l'oral, comme dans une vraie conversation humaine.\n\n"
+            "RÈGLES ABSOLUES POUR LE VOCAL :\n"
+            "1. Maximum 3 à 5 phrases par réponse — sois concis et naturel.\n"
+            "2. N'utilise JAMAIS de markdown : pas de *, **, #, -, listes, blocs de code.\n"
+            "3. Parle comme un humain : contractions, transitions naturelles (« En fait », « Donc », « Du coup »…).\n"
+            "4. Si la question est complexe, donne l'essentiel d'abord et propose d'aller plus loin.\n"
+            "5. Utilise la langue de l'utilisateur (français, anglais, lingala…).\n"
+            "6. Ne dis jamais que tu es une IA — parle simplement et avec confiance."
+        )
+
+        messages.append({"role": "system", "content": voice_system})
+
+        if conversation_history:
+            for msg in conversation_history[-6:]:
+                messages.append(msg)
+
+        messages.append({"role": "user", "content": text})
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=350,
+            temperature=0.65
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Désolé, je n'ai pas pu traiter ta demande. Réessaie."
+
+
 def should_search(text):
     """Détermine si une recherche web est nécessaire"""
     search_keywords = [

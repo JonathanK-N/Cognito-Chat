@@ -655,6 +655,130 @@
         .send-btn:hover { transform: scale(1.05); box-shadow: 0 6px 18px rgba(99,102,241,0.4); }
         .send-btn:disabled { background: var(--border); box-shadow: none; cursor: not-allowed; transform: none; }
 
+        /* ── BOUTON MICRO ── */
+        .mic-btn {
+            background: transparent;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            width: 36px; height: 36px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            margin-bottom: 2px;
+        }
+        .mic-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .mic-btn.recording {
+            background: rgba(239,68,68,0.15);
+            border-color: #ef4444;
+            color: #ef4444;
+            animation: mic-pulse 1s ease-in-out infinite;
+        }
+        @keyframes mic-pulse {
+            0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+            50%      { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+        }
+
+        /* ── MODAL VOCAL ── */
+        .voice-modal {
+            display: none;
+            position: fixed; inset: 0; z-index: 1000;
+            align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+        }
+        .voice-modal.show { display: flex; }
+        .voice-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 40px 48px;
+            width: 380px;
+            text-align: center;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+        }
+        .voice-orb {
+            width: 96px; height: 96px;
+            border-radius: 50%;
+            background: var(--gradient);
+            margin: 0 auto 24px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 36px; color: white;
+            box-shadow: 0 0 0 0 rgba(99,102,241,0.5);
+            transition: transform 0.2s;
+        }
+        .voice-orb.idle    { background: var(--gradient); }
+        .voice-orb.recording {
+            animation: orb-wave 1.2s ease-in-out infinite;
+            background: linear-gradient(135deg, #ef4444, #f97316);
+        }
+        .voice-orb.thinking {
+            animation: orb-spin 1.5s linear infinite;
+            background: linear-gradient(135deg, #6366f1, #06b6d4);
+        }
+        .voice-orb.speaking {
+            animation: orb-bounce 0.6s ease-in-out infinite alternate;
+            background: linear-gradient(135deg, #10b981, #06b6d4);
+        }
+        @keyframes orb-wave {
+            0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.6), 0 0 0 12px rgba(239,68,68,0.2); }
+            50%      { box-shadow: 0 0 0 16px rgba(239,68,68,0), 0 0 0 30px rgba(239,68,68,0); }
+        }
+        @keyframes orb-spin  { to { filter: hue-rotate(360deg); } }
+        @keyframes orb-bounce { from { transform: scale(0.95); } to { transform: scale(1.05); } }
+
+        .voice-status {
+            font-size: 15px; font-weight: 600;
+            color: var(--text-primary); margin-bottom: 6px;
+        }
+        .voice-transcript {
+            font-size: 13px; color: var(--text-muted);
+            min-height: 36px; margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .voice-wave {
+            display: flex; align-items: center; justify-content: center;
+            gap: 4px; height: 32px; margin-bottom: 20px;
+        }
+        .voice-wave span {
+            display: block; width: 4px; border-radius: 2px;
+            background: var(--accent);
+            animation: wave-bar 1s ease-in-out infinite;
+        }
+        .voice-wave span:nth-child(1) { animation-delay: 0.0s; }
+        .voice-wave span:nth-child(2) { animation-delay: 0.1s; }
+        .voice-wave span:nth-child(3) { animation-delay: 0.2s; }
+        .voice-wave span:nth-child(4) { animation-delay: 0.3s; }
+        .voice-wave span:nth-child(5) { animation-delay: 0.4s; }
+        .voice-wave span:nth-child(6) { animation-delay: 0.3s; }
+        .voice-wave span:nth-child(7) { animation-delay: 0.2s; }
+        @keyframes wave-bar {
+            0%,100% { height: 6px;  opacity: 0.4; }
+            50%      { height: 28px; opacity: 1;   }
+        }
+        .voice-wave.inactive span { animation: none; height: 6px; opacity: 0.2; }
+        .voice-actions { display: flex; gap: 12px; justify-content: center; }
+        .voice-stop-btn {
+            background: rgba(239,68,68,0.15);
+            border: 1.5px solid #ef4444;
+            color: #ef4444;
+            border-radius: 12px; padding: 10px 20px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .voice-stop-btn:hover { background: rgba(239,68,68,0.25); }
+        .voice-close-btn {
+            background: var(--bg-tertiary);
+            border: 1.5px solid var(--border);
+            color: var(--text-muted);
+            border-radius: 12px; padding: 10px 20px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .voice-close-btn:hover { border-color: var(--accent); color: var(--accent); }
+
         .input-hint {
             text-align: center;
             font-size: 11px;
@@ -861,13 +985,39 @@
                             placeholder="Envoyez un message à Cognito Chat..."
                             rows="1"
                         ></textarea>
+                        <button type="button" class="mic-btn" id="mic-btn" title="Discussion vocale">
+                            <i class="fas fa-microphone"></i>
+                        </button>
                         <button type="submit" class="send-btn" id="send-btn" disabled>
                             <i class="fas fa-arrow-up"></i>
                         </button>
                     </div>
                 </form>
 
-                <div class="input-hint">Entrée pour envoyer · Maj+Entrée pour nouvelle ligne</div>
+                <div class="input-hint">Entrée pour envoyer · Maj+Entrée pour nouvelle ligne · <i class="fas fa-microphone" style="color:var(--accent)"></i> pour parler</div>
+
+                <!-- ── MODAL VOCAL ── -->
+                <div class="voice-modal" id="voice-modal">
+                    <div class="voice-card">
+                        <div class="voice-orb idle" id="voice-orb">
+                            <i class="fas fa-microphone" id="voice-orb-icon"></i>
+                        </div>
+                        <div class="voice-status" id="voice-status">Prêt à écouter</div>
+                        <div class="voice-transcript" id="voice-transcript">Clique sur le micro pour parler</div>
+                        <div class="voice-wave inactive" id="voice-wave">
+                            <span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div class="voice-actions">
+                            <button class="voice-stop-btn" id="voice-stop-btn">
+                                <i class="fas fa-stop"></i> Arrêter
+                            </button>
+                            <button class="voice-close-btn" id="voice-close-btn">
+                                <i class="fas fa-times"></i> Fermer
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1209,6 +1359,186 @@
         // Render existing bot messages
         document.querySelectorAll('.bot .msg-bubble[data-raw]').forEach(bubble => {
             renderMarkdown(bubble, bubble.dataset.raw);
+        });
+
+        // ══════════════════════════════════════════════════════════
+        // VOICE CHAT
+        // ══════════════════════════════════════════════════════════
+        const micBtn        = document.getElementById('mic-btn');
+        const voiceModal    = document.getElementById('voice-modal');
+        const voiceOrb      = document.getElementById('voice-orb');
+        const voiceOrbIcon  = document.getElementById('voice-orb-icon');
+        const voiceStatus   = document.getElementById('voice-status');
+        const voiceTranscript = document.getElementById('voice-transcript');
+        const voiceWave     = document.getElementById('voice-wave');
+        const voiceStopBtn  = document.getElementById('voice-stop-btn');
+        const voiceCloseBtn = document.getElementById('voice-close-btn');
+
+        let mediaRecorder = null;
+        let audioChunks   = [];
+        let voiceStream   = null;
+        let currentAudio  = null;   // Audio en cours de lecture
+        let voiceActive   = false;  // la modal est-elle ouverte ?
+
+        function setVoiceState(state, text) {
+            // states : idle | recording | thinking | speaking
+            voiceOrb.className = `voice-orb ${state}`;
+            voiceStatus.textContent = text;
+            const icons = {
+                idle:      'fa-microphone',
+                recording: 'fa-stop',
+                thinking:  'fa-circle-notch fa-spin',
+                speaking:  'fa-volume-high'
+            };
+            voiceOrbIcon.className = `fas ${icons[state] || 'fa-microphone'}`;
+            voiceWave.className = (state === 'recording' || state === 'speaking')
+                ? 'voice-wave' : 'voice-wave inactive';
+        }
+
+        function stopCurrentAudio() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+        }
+
+        async function startRecording() {
+            try {
+                voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            } catch (e) {
+                alert("Accès au micro refusé. Autorise le micro dans ton navigateur.");
+                return;
+            }
+            audioChunks = [];
+            const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                ? 'audio/webm;codecs=opus'
+                : MediaRecorder.isTypeSupported('audio/webm')
+                    ? 'audio/webm' : 'audio/mp4';
+
+            mediaRecorder = new MediaRecorder(voiceStream, { mimeType });
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.onstop = handleRecordingStop;
+            mediaRecorder.start(200);
+
+            setVoiceState('recording', 'Je t\'écoute...');
+            voiceTranscript.textContent = '';
+            micBtn.classList.add('recording');
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            if (voiceStream) {
+                voiceStream.getTracks().forEach(t => t.stop());
+                voiceStream = null;
+            }
+            micBtn.classList.remove('recording');
+        }
+
+        async function handleRecordingStop() {
+            setVoiceState('thinking', 'Cognito réfléchit...');
+            voiceTranscript.textContent = '...';
+
+            const mimeType = audioChunks[0]?.type || 'audio/webm';
+            const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
+            const blob = new Blob(audioChunks, { type: mimeType });
+            const formData = new FormData();
+            formData.append('audio', blob, `voice.${ext}`);
+
+            try {
+                const res = await fetch(`/voice-chat/${SESSION_ID}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (!data.success) {
+                    voiceTranscript.textContent = data.error || "Erreur lors du traitement.";
+                    setVoiceState('idle', 'Prêt à écouter');
+                    return;
+                }
+
+                // Afficher la transcription
+                voiceTranscript.textContent = `"${data.transcript}"`;
+
+                // Ajouter les messages dans le chat
+                addMessage(data.transcript, 'user');
+                addMessage(data.response_text, 'bot');
+
+                // Lire la réponse audio
+                if (data.audio_b64) {
+                    setVoiceState('speaking', 'Cognito parle...');
+                    const audioSrc = 'data:audio/mp3;base64,' + data.audio_b64;
+                    currentAudio = new Audio(audioSrc);
+                    currentAudio.onended = () => {
+                        if (voiceActive) {
+                            setVoiceState('idle', 'Prêt à écouter');
+                            voiceTranscript.textContent = 'Clique sur l\'orbe pour répondre';
+                            // Auto-relance l'écoute après la réponse
+                            setTimeout(() => {
+                                if (voiceActive) startRecording();
+                            }, 800);
+                        }
+                    };
+                    await currentAudio.play();
+                } else {
+                    setVoiceState('idle', 'Prêt à écouter');
+                }
+
+            } catch (e) {
+                voiceTranscript.textContent = "Erreur réseau. Réessaie.";
+                setVoiceState('idle', 'Prêt à écouter');
+            }
+        }
+
+        function openVoiceModal() {
+            voiceActive = true;
+            voiceModal.classList.add('show');
+            setVoiceState('idle', 'Prêt à écouter');
+            voiceTranscript.textContent = 'Clique sur l\'orbe pour parler';
+        }
+
+        function closeVoiceModal() {
+            voiceActive = false;
+            stopRecording();
+            stopCurrentAudio();
+            voiceModal.classList.remove('show');
+            setVoiceState('idle', 'Prêt à écouter');
+        }
+
+        // Clic sur l'orbe → démarre/arrête l'enregistrement
+        voiceOrb.addEventListener('click', () => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopRecording();
+            } else if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                stopCurrentAudio();
+                startRecording();
+            }
+        });
+
+        // Bouton STOP — arrête l'enregistrement en cours
+        voiceStopBtn.addEventListener('click', () => {
+            stopCurrentAudio();
+            stopRecording();
+            setVoiceState('idle', 'Prêt à écouter');
+        });
+
+        // Bouton FERMER
+        voiceCloseBtn.addEventListener('click', closeVoiceModal);
+
+        // Clic en dehors de la carte → ferme
+        voiceModal.addEventListener('click', e => {
+            if (e.target === voiceModal) closeVoiceModal();
+        });
+
+        // Bouton micro dans la barre de saisie → ouvre la modal
+        micBtn.addEventListener('click', () => {
+            if (voiceModal.classList.contains('show')) {
+                closeVoiceModal();
+            } else {
+                openVoiceModal();
+            }
         });
     </script>
 </body>

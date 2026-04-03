@@ -2,10 +2,10 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 import os
 import io
 from werkzeug.utils import secure_filename
-from services.gpt_service import get_gpt_response, analyze_image, generate_image, should_generate_image, is_image_followup, extract_image_prompt_from_history
+from services.gpt_service import get_gpt_response, analyze_image, generate_image, should_generate_image, is_image_followup, extract_image_prompt_from_history, get_voice_response
 from services.pdf_service import extract_text_from_pdf
 from services.whisper_service import transcribe_audio
-from services.tts_service import text_to_speech
+from services.tts_service import text_to_speech, tts_to_bytes
 from services.file_generator import should_generate_file, generate_pdf, generate_word, generate_pptx
 from database import save_conversation, get_conversations, get_conversation_history, create_chat_session, get_chat_sessions, get_session_messages, update_session_title, get_user_by_id, delete_chat_session
 
@@ -326,6 +326,65 @@ def download_file():
         )
     except Exception as e:
         return f"Erreur lors de la génération du fichier : {str(e)}", 500
+
+@web_bp.route('/voice-chat/<session_id>', methods=['POST'])
+@login_required
+def voice_chat(session_id):
+    """
+    Reçoit un blob audio (webm/mp3), transcrit avec Whisper,
+    génère une réponse vocale GPT-4o, synthétise avec OpenAI TTS nova,
+    retourne JSON { transcript, response_text } + audio MP3 en base64.
+    """
+    try:
+        audio_file = request.files.get('audio')
+        if not audio_file:
+            return jsonify({'success': False, 'error': 'Aucun fichier audio reçu.'}), 400
+
+        import tempfile, base64
+
+        # Sauvegarder temporairement
+        suffix = '.webm'
+        ext = audio_file.filename.rsplit('.', 1)[-1].lower() if '.' in audio_file.filename else 'webm'
+        suffix = f'.{ext}'
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            audio_file.save(tmp.name)
+            tmp_path = tmp.name
+
+        try:
+            # 1. Transcription Whisper
+            transcript = transcribe_audio(tmp_path)
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+        if not transcript or transcript.startswith('Erreur'):
+            return jsonify({'success': False, 'error': "Je n'ai pas pu comprendre l'audio."}), 400
+
+        # 2. Historique + réponse GPT vocal
+        conversation_history = get_conversation_history(session_id, 6)
+        response_text = get_voice_response(transcript, conversation_history)
+
+        # 3. Synthèse vocale OpenAI TTS (voix nova)
+        audio_bytes = tts_to_bytes(response_text, voice="nova")
+        audio_b64 = base64.b64encode(audio_bytes).decode('utf-8') if audio_bytes else None
+
+        # 4. Sauvegarder la conversation
+        user_id = session['user_id']
+        save_conversation(session_id, user_id, "web-voice", "voice", transcript, response_text)
+
+        if len(conversation_history) == 0:
+            update_session_title(session_id, transcript[:50])
+
+        return jsonify({
+            'success': True,
+            'transcript': transcript,
+            'response_text': response_text,
+            'audio_b64': audio_b64
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @web_bp.route('/delete-session/<session_id>', methods=['POST'])
 @login_required
