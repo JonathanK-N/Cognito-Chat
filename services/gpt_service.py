@@ -60,7 +60,7 @@ def get_gpt_response(text, max_tokens=2500, use_search=True, conversation_histor
         messages.append({"role": "system", "content": system_prompt})
 
         if conversation_history:
-            for msg in conversation_history[-6:]:
+            for msg in conversation_history[-20:]:
                 messages.append(msg)
 
         user_content = text
@@ -263,7 +263,7 @@ def get_voice_response(text, conversation_history=None):
         messages.append({"role": "system", "content": voice_system})
 
         if conversation_history:
-            for msg in conversation_history[-6:]:
+            for msg in conversation_history[-20:]:
                 messages.append(msg)
 
         messages.append({"role": "user", "content": text})

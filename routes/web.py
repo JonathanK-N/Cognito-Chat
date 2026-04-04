@@ -72,8 +72,8 @@ def chat(session_id):
         question = message
         sources = []  # liste de {title, url} à afficher sous la réponse
         
-        # Récupérer l'historique de conversation
-        conversation_history = get_conversation_history(session_id, 6)
+        # Récupérer l'historique de conversation (20 derniers échanges)
+        conversation_history = get_conversation_history(session_id, 20)
         
         if file and file.filename and allowed_file(file.filename):
             # Sauvegarder le fichier
@@ -262,16 +262,7 @@ def chat(session_id):
         else:
             response_text = "Veuillez saisir un message ou uploader un fichier."
         
-        # Sauvegarder la conversation
-        user_id = session['user_id']
-        save_conversation(session_id, user_id, "web-interface", message_type, question, response_text)
-        
-        # Mettre à jour le titre de la session si c'est le premier message
-        if len(conversation_history) == 0 and question:
-            title = question[:50] + "..." if len(question) > 50 else question
-            update_session_title(session_id, title)
-        
-        # Extraire l'URL si image générée
+        # Transformer les marqueurs internes en texte lisible
         image_url_out = None
         file_token_out = None
 
@@ -280,12 +271,10 @@ def chat(session_id):
             response_text = f"Voici l'image générée pour : *{message}*"
 
         elif response_text.startswith('__FILE_GENERATED__:'):
-            # Format : __FILE_GENERATED__:pdf:Titre\nContenu...
             header, _, doc_content = response_text.partition('\n')
             parts = header.split(':', 2)
             file_type_out = parts[1] if len(parts) > 1 else 'pdf'
             doc_title = parts[2] if len(parts) > 2 else 'document'
-            # Stocker le contenu en session Flask pour le téléchargement
             session['pending_file'] = {
                 'type': file_type_out,
                 'title': doc_title,
@@ -300,6 +289,16 @@ def chat(session_id):
                 f"Votre document **{doc_title}** est prêt.\n\n"
                 f"Cliquez sur le bouton ci-dessous pour le télécharger en {ext_label} (`.{ext_file}`)."
             )
+
+        # Sauvegarder la vraie réponse (lisible, sans marqueurs internes)
+        user_id = session['user_id']
+        saved_question = question if question else message
+        save_conversation(session_id, user_id, "web-interface", message_type, saved_question, response_text)
+
+        # Titre de session au premier message
+        if len(conversation_history) == 0 and saved_question:
+            title = saved_question[:50] + "..." if len(saved_question) > 50 else saved_question
+            update_session_title(session_id, title)
 
         return jsonify({
             'success': True,
