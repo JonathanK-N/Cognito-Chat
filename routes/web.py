@@ -258,7 +258,7 @@ def chat(session_id):
                         f"__FILE_GENERATED__:{file_type}:{doc_title}\n{doc_content}"
                     )
                 else:
-                    response_text, sources = get_gpt_response(message, max_tokens=1500, conversation_history=conversation_history)
+                    response_text, sources = get_gpt_response(message, max_tokens=2500, conversation_history=conversation_history)
         else:
             response_text = "Veuillez saisir un message ou uploader un fichier."
         

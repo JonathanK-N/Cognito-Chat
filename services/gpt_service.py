@@ -9,7 +9,7 @@ try:
 except Exception:
     client = None
 
-def get_gpt_response(text, max_tokens=500, use_search=True, conversation_history=None):
+def get_gpt_response(text, max_tokens=2500, use_search=True, conversation_history=None):
     """
     Obtient une réponse de GPT-4o avec recherche web.
     Retourne (response_text, sources) où sources est une liste de dicts {title, url}.

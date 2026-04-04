@@ -46,41 +46,53 @@ def search_web(query, num_results=3):
 def duckduckgo_search(query, num_results=3):
     """Recherche avec DuckDuckGo en scrapant les résultats"""
     try:
-        # Recherche DuckDuckGo
-        search_url = f"https://duckduckgo.com/html/?q={urllib.parse.quote(query + ' 2024')}"
-        
+        search_url = f"https://duckduckgo.com/html/?q={urllib.parse.quote(query)}"
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
-        
         response = requests.get(search_url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.content, 'html.parser')
-        
+
         results = []
-        
-        # Extraire les résultats
-        for result in soup.find_all('div', class_='result')[:num_results]:
-            title_elem = result.find('a', class_='result__a')
+        for result in soup.find_all('div', class_='result')[:num_results * 2]:
+            title_elem   = result.find('a', class_='result__a')
             snippet_elem = result.find('a', class_='result__snippet')
-            
-            if title_elem:
-                title = title_elem.get_text().strip()
-                url = title_elem.get('href', '')
-                snippet = snippet_elem.get_text().strip() if snippet_elem else ''
-                
-                if title and snippet:
-                    results.append({
-                        'title': title,
-                        'content': snippet,
-                        'url': url
-                    })
-        
+            url_elem     = result.find('a', class_='result__url')
+
+            if not title_elem:
+                continue
+
+            title   = title_elem.get_text().strip()
+            snippet = snippet_elem.get_text().strip() if snippet_elem else ''
+
+            # Récupérer la vraie URL — DuckDuckGo encode en paramètre uddg=
+            raw_href = title_elem.get('href', '')
+            real_url = ''
+            if raw_href.startswith('http'):
+                real_url = raw_href
+            elif 'uddg=' in raw_href:
+                # Extraire l'URL encodée dans le paramètre uddg
+                parsed = urllib.parse.parse_qs(urllib.parse.urlparse(raw_href).query)
+                real_url = urllib.parse.unquote(parsed.get('uddg', [''])[0])
+            elif url_elem:
+                # Fallback : construire depuis le domaine affiché
+                domain = url_elem.get_text().strip()
+                if domain and not domain.startswith('http'):
+                    real_url = 'https://' + domain
+
+            if title and real_url and real_url.startswith('http'):
+                results.append({
+                    'title': title,
+                    'content': snippet,
+                    'url': real_url
+                })
+                if len(results) >= num_results:
+                    break
+
         if not results:
-            # Dernière tentative avec Google News RSS
             return google_news_search(query)
-        
         return results
-        
+
     except Exception as e:
         return google_news_search(query)
 

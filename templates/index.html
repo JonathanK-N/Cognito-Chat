@@ -789,47 +789,69 @@
 
         /* ── SOURCES ── */
         .msg-sources {
-            margin-top: 12px;
-            padding-top: 10px;
+            margin-top: 14px;
+            padding-top: 12px;
             border-top: 1px solid var(--border);
         }
         .msg-sources-label {
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 10.5px;
+            font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 6px;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
         }
         .msg-sources-list {
             display: flex;
             flex-direction: column;
-            gap: 5px;
+            gap: 6px;
         }
         .msg-source-link {
             display: flex;
             align-items: center;
-            gap: 7px;
-            font-size: 12.5px;
-            color: var(--accent);
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-primary);
             text-decoration: none;
-            padding: 5px 9px;
-            border-radius: 8px;
-            background: rgba(99,102,241,0.07);
-            border: 1px solid rgba(99,102,241,0.15);
+            padding: 8px 12px;
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
             transition: all 0.15s ease;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
         }
         .msg-source-link:hover {
-            background: rgba(99,102,241,0.15);
+            background: rgba(99,102,241,0.1);
             border-color: var(--accent);
+            color: var(--accent);
         }
-        .msg-source-link i { flex-shrink: 0; font-size: 11px; }
+        .msg-source-favicon {
+            width: 16px; height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+            object-fit: contain;
+        }
+        .msg-source-text { flex: 1; min-width: 0; }
+        .msg-source-title {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+        .msg-source-domain {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: block;
+            margin-top: 1px;
+        }
+        .msg-source-arrow {
+            flex-shrink: 0;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
 
         /* ── MOBILE ── */
         .sidebar-overlay {
@@ -1303,22 +1325,42 @@
             if (role === 'bot' && sources && sources.length > 0) {
                 const srcDiv = document.createElement('div');
                 srcDiv.className = 'msg-sources';
+
                 const label = document.createElement('div');
                 label.className = 'msg-sources-label';
-                label.innerHTML = '<i class="fas fa-link"></i> Sources';
+                label.innerHTML = '<i class="fas fa-globe"></i> Sources';
                 srcDiv.appendChild(label);
+
                 const list = document.createElement('div');
                 list.className = 'msg-sources-list';
-                sources.forEach(src => {
+
+                sources.forEach((src, idx) => {
+                    let domain = '';
+                    try {
+                        const u = new URL(src.url);
+                        domain = u.hostname.replace(/^www\./, '');
+                    } catch(_) { domain = src.url; }
+
+                    const faviconUrl = `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
+
                     const a = document.createElement('a');
                     a.className = 'msg-source-link';
                     a.href = src.url;
                     a.target = '_blank';
                     a.rel = 'noopener noreferrer';
-                    a.innerHTML = `<i class="fas fa-arrow-up-right-from-square"></i> ${src.title}`;
                     a.title = src.url;
+                    a.innerHTML = `
+                        <img class="msg-source-favicon" src="${faviconUrl}" alt=""
+                             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><circle cx=%228%22 cy=%228%22 r=%228%22 fill=%22%236366f1%22/></svg>'">
+                        <span class="msg-source-text">
+                            <span class="msg-source-title">${src.title}</span>
+                            <span class="msg-source-domain">${domain}</span>
+                        </span>
+                        <i class="fas fa-arrow-up-right-from-square msg-source-arrow"></i>
+                    `;
                     list.appendChild(a);
                 });
+
                 srcDiv.appendChild(list);
                 bubble.appendChild(srcDiv);
             }
