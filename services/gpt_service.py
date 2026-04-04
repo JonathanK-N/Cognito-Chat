@@ -52,7 +52,8 @@ def get_gpt_response(text, max_tokens=2500, use_search=True, conversation_histor
             "6. Sois proactif : anticipe ce dont l'utilisateur a besoin.\n"
             "7. Réponds dans la langue de l'utilisateur (français, anglais, lingala, swahili, etc.).\n"
             "8. Sois direct, précis et utile. N'ajoute pas de mise en garde inutile.\n"
-            "9. Ne mentionne JAMAIS les URLs ou sources dans ta réponse — elles sont affichées automatiquement sous ta réponse."
+            "9. Ne dis JAMAIS que tu ne peux pas fournir de sources ou de liens — si on te demande des sources, "
+            "donne directement les informations pertinentes. Les sources web sont affichées automatiquement sous ta réponse par le système."
         )
         if search_context:
             system_prompt += "\n\nUtilise les informations de recherche récentes fournies ET tes connaissances. Privilégie les infos récentes."
