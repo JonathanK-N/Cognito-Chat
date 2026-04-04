@@ -44,16 +44,24 @@ def transcribe_audio_from_url(audio_url):
 def transcribe_audio(audio_path, language=None):
     """Transcrit un fichier audio local avec Whisper"""
     try:
-        with open(audio_path, 'rb') as audio_file:
-            params = dict(
-                model="whisper-1",
-                file=audio_file,
-                response_format="text",
-                prompt="Cognito Chat, assistant vocal intelligent."
-            )
-            if language:
-                params['language'] = language
-            transcript = client.audio.transcriptions.create(**params)
+        import io as _io
+        ext = os.path.splitext(audio_path)[1].lstrip('.') or 'webm'
+        # Lire les bytes et créer un BytesIO avec .name explicite
+        # Le SDK OpenAI utilise .name pour détecter le format audio
+        with open(audio_path, 'rb') as f:
+            data = f.read()
+        audio_io = _io.BytesIO(data)
+        audio_io.name = f'voice.{ext}'
+
+        params = dict(
+            model="whisper-1",
+            file=audio_io,
+            response_format="text",
+            prompt="Cognito Chat."
+        )
+        if language:
+            params['language'] = language
+        transcript = client.audio.transcriptions.create(**params)
         return transcript if isinstance(transcript, str) else transcript.text
     except Exception as e:
         return f"Erreur Whisper: {str(e)}"
