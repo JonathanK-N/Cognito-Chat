@@ -22,7 +22,20 @@ def login_required(f):
 web_bp = Blueprint('web', __name__)
 
 UPLOAD_FOLDER = 'uploads'
-ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'mp3', 'wav', 'ogg'}
+ALLOWED_EXTENSIONS = {
+    # Images
+    'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp',
+    # Audio
+    'mp3', 'wav', 'ogg', 'm4a', 'flac', 'webm',
+    # Documents Adobe / texte
+    'pdf', 'txt',
+    # Microsoft Office
+    'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+    # Données
+    'csv', 'json', 'xml',
+    # OpenDocument
+    'odt', 'ods', 'odp',
+}
 
 # Créer le dossier uploads s'il n'existe pas
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -90,8 +103,8 @@ def chat(session_id):
                         question = f"PDF: {filename}" + (f" + Question: {message}" if message else "")
                     else:
                         response_text = pdf_text
-                        
-                elif filename.lower().endswith(('.mp3', '.wav', '.ogg')):
+
+                elif filename.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a', '.flac', '.webm')):
                     message_type = "audio"
                     transcription = transcribe_audio(filepath)
                     if transcription and not transcription.startswith("Erreur"):
@@ -102,6 +115,91 @@ def chat(session_id):
                         question = f"Audio: {filename}" + (f" + Question: {message}" if message else "")
                     else:
                         response_text = transcription
+
+                elif filename.lower().endswith(('.docx', '.doc')):
+                    message_type = "word"
+                    try:
+                        from docx import Document as _DocX
+                        doc = _DocX(filepath)
+                        doc_text = '\n'.join(p.text for p in doc.paragraphs if p.text.strip())
+                        prompt = f"Analyse ce document Word:\n\n{doc_text[:8000]}"
+                        if message:
+                            prompt += f"\n\nQuestion spécifique: {message}"
+                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        question = f"Word: {filename}" + (f" + Question: {message}" if message else "")
+                    except Exception as e:
+                        response_text = f"Impossible de lire le fichier Word: {str(e)}"
+
+                elif filename.lower().endswith(('.xlsx', '.xls')):
+                    message_type = "excel"
+                    try:
+                        import openpyxl as _xl
+                        wb = _xl.load_workbook(filepath, read_only=True, data_only=True)
+                        rows = []
+                        for sheet in wb.worksheets[:3]:
+                            rows.append(f"[Feuille: {sheet.title}]")
+                            for row in sheet.iter_rows(max_row=100, values_only=True):
+                                if any(c is not None for c in row):
+                                    rows.append('\t'.join(str(c) if c is not None else '' for c in row))
+                        sheet_text = '\n'.join(rows)[:8000]
+                        prompt = f"Analyse ce fichier Excel:\n\n{sheet_text}"
+                        if message:
+                            prompt += f"\n\nQuestion spécifique: {message}"
+                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        question = f"Excel: {filename}" + (f" + Question: {message}" if message else "")
+                    except Exception as e:
+                        response_text = f"Impossible de lire le fichier Excel: {str(e)}"
+
+                elif filename.lower().endswith(('.pptx', '.ppt')):
+                    message_type = "powerpoint"
+                    try:
+                        from pptx import Presentation as _Prs
+                        prs = _Prs(filepath)
+                        slides_text = []
+                        for i, slide in enumerate(prs.slides, 1):
+                            texts = [sh.text for sh in slide.shapes if hasattr(sh, 'text') and sh.text.strip()]
+                            if texts:
+                                slides_text.append(f"Slide {i}: " + ' | '.join(texts))
+                        pptx_text = '\n'.join(slides_text)[:8000]
+                        prompt = f"Analyse cette présentation PowerPoint:\n\n{pptx_text}"
+                        if message:
+                            prompt += f"\n\nQuestion spécifique: {message}"
+                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        question = f"PowerPoint: {filename}" + (f" + Question: {message}" if message else "")
+                    except Exception as e:
+                        response_text = f"Impossible de lire le fichier PowerPoint: {str(e)}"
+
+                elif filename.lower().endswith('.csv'):
+                    message_type = "csv"
+                    try:
+                        import csv as _csv
+                        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+                            reader = _csv.reader(f)
+                            rows = ['\t'.join(row) for _, row in zip(range(100), reader)]
+                        csv_text = '\n'.join(rows)[:8000]
+                        prompt = f"Analyse ce fichier CSV:\n\n{csv_text}"
+                        if message:
+                            prompt += f"\n\nQuestion spécifique: {message}"
+                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        question = f"CSV: {filename}" + (f" + Question: {message}" if message else "")
+                    except Exception as e:
+                        response_text = f"Impossible de lire le fichier CSV: {str(e)}"
+
+                elif filename.lower().endswith(('.txt', '.json', '.xml', '.csv')):
+                    message_type = "texte"
+                    try:
+                        with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
+                            file_text = f.read(8000)
+                        prompt = f"Analyse ce fichier texte ({filename}):\n\n{file_text}"
+                        if message:
+                            prompt += f"\n\nQuestion spécifique: {message}"
+                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        question = f"Fichier: {filename}" + (f" + Question: {message}" if message else "")
+                    except Exception as e:
+                        response_text = f"Impossible de lire le fichier: {str(e)}"
+
+                else:
+                    response_text = f"Format de fichier non supporté pour l'analyse: {filename}"
                         
             finally:
                 # Nettoyer le fichier uploadé
