@@ -1448,6 +1448,9 @@
         }
 
 
+        let recordingStartTime = 0;
+        const MIN_RECORD_MS = 1500; // 1.5 secondes minimum
+
         async function startRecording() {
             try {
                 voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1464,7 +1467,8 @@
             mediaRecorder = new MediaRecorder(voiceStream, { mimeType });
             mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
             mediaRecorder.onstop = handleRecordingStop;
-            mediaRecorder.start(200);
+            mediaRecorder.start(100); // chunks toutes les 100ms
+            recordingStartTime = Date.now();
 
             setVoiceState('recording', 'Je t\'écoute...');
             voiceTranscript.textContent = '';
@@ -1472,8 +1476,18 @@
         }
 
         function stopRecording() {
+            const elapsed = Date.now() - recordingStartTime;
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-                mediaRecorder.stop();
+                if (elapsed < MIN_RECORD_MS) {
+                    // Attendre la durée minimale avant d'arrêter
+                    setTimeout(() => {
+                        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                            mediaRecorder.stop();
+                        }
+                    }, MIN_RECORD_MS - elapsed);
+                } else {
+                    mediaRecorder.stop();
+                }
             }
             if (voiceStream) {
                 voiceStream.getTracks().forEach(t => t.stop());
@@ -1490,8 +1504,8 @@
             const ext = mimeType.includes('mp4') ? 'mp4' : 'webm';
             const blob = new Blob(audioChunks, { type: mimeType });
 
-            if (blob.size < 1000) {
-                voiceTranscript.textContent = "Audio trop court. Parle plus longtemps.";
+            if (blob.size < 3000) {
+                voiceTranscript.textContent = "Tiens le micro et parle pendant au moins 1 seconde.";
                 setVoiceState('idle', 'Prêt à écouter');
                 return;
             }

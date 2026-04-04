@@ -64,4 +64,7 @@ def transcribe_audio(audio_path, language=None):
         transcript = client.audio.transcriptions.create(**params)
         return transcript if isinstance(transcript, str) else transcript.text
     except Exception as e:
-        return f"Erreur Whisper: {str(e)}"
+        err = str(e)
+        if 'too_short' in err or 'too short' in err.lower():
+            return "Erreur: audio trop court, parle un peu plus longtemps."
+        return f"Erreur Whisper: {err}"
