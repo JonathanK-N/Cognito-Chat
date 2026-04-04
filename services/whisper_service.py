@@ -41,17 +41,19 @@ def transcribe_audio_from_url(audio_url):
     except Exception as e:
         return f"Erreur transcription audio: {str(e)}"
 
-def transcribe_audio(audio_path):
+def transcribe_audio(audio_path, language=None):
     """Transcrit un fichier audio local avec Whisper"""
     try:
-        # Whisper a besoin du nom de fichier pour détecter le format
-        filename = os.path.basename(audio_path)
         with open(audio_path, 'rb') as audio_file:
-            transcript = client.audio.transcriptions.create(
+            params = dict(
                 model="whisper-1",
-                file=(filename, audio_file),
-                response_format="text"
+                file=audio_file,
+                response_format="text",
+                prompt="Cognito Chat, assistant vocal intelligent."
             )
+            if language:
+                params['language'] = language
+            transcript = client.audio.transcriptions.create(**params)
         return transcript if isinstance(transcript, str) else transcript.text
     except Exception as e:
         return f"Erreur Whisper: {str(e)}"

@@ -356,7 +356,11 @@ def voice_chat(session_id):
 
         # 1. Transcription Whisper
         try:
-            transcript = transcribe_audio(tmp_path)
+            lang = request.form.get('language') or None
+            # Normaliser : "fr-FR" → "fr", "en-US" → "en"
+            if lang and '-' in lang:
+                lang = lang.split('-')[0]
+            transcript = transcribe_audio(tmp_path, language=lang)
         except Exception as e:
             return jsonify({'success': False, 'error': f'Whisper: {str(e)}'}), 500
 

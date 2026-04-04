@@ -1381,29 +1381,47 @@
         let audioCtx      = null;
         let currentSource = null;
 
-        // Déverrouille l'AudioContext dès le premier geste utilisateur
+        // Crée et déverrouille l'AudioContext (doit être appelé dans un geste utilisateur)
         function unlockAudioCtx() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            // Joue un buffer silencieux de 0.001s — déverrouille iOS Safari définitivement
+            try {
+                const silent = audioCtx.createBuffer(1, 1, 22050);
+                const src = audioCtx.createBufferSource();
+                src.buffer = silent;
+                src.connect(audioCtx.destination);
+                src.start(0);
+            } catch(_) {}
         }
 
-        // Joue un MP3 base64 via WebAudio (contourne l'autoplay policy)
+        // Joue un MP3 base64 via WebAudio
         function playAudioB64(b64) {
             return new Promise((resolve, reject) => {
-                unlockAudioCtx();
-                const binary = atob(b64);
-                const bytes  = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                audioCtx.decodeAudioData(bytes.buffer, buffer => {
-                    if (currentSource) { try { currentSource.stop(); } catch(_){} }
-                    currentSource = audioCtx.createBufferSource();
-                    currentSource.buffer = buffer;
-                    currentSource.connect(audioCtx.destination);
-                    currentSource.onended = resolve;
-                    currentSource.start(0);
-                }, reject);
+                // Resume obligatoire avant decode sur iOS
+                const doPlay = () => {
+                    const binary = atob(b64);
+                    const bytes  = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    audioCtx.decodeAudioData(bytes.buffer.slice(0), buffer => {
+                        stopCurrentAudio();
+                        currentSource = audioCtx.createBufferSource();
+                        currentSource.buffer = buffer;
+                        currentSource.connect(audioCtx.destination);
+                        currentSource.onended = resolve;
+                        currentSource.start(0);
+                    }, reject);
+                };
+                if (!audioCtx) unlockAudioCtx();
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume().then(doPlay).catch(reject);
+                } else {
+                    doPlay();
+                }
             });
         }
 
@@ -1480,6 +1498,9 @@
 
             const formData = new FormData();
             formData.append('audio', blob, `voice.${ext}`);
+            // Envoyer la langue du navigateur pour Whisper
+            const browserLang = (navigator.language || 'fr').split('-')[0];
+            formData.append('language', browserLang);
 
             let res, data;
             try {
