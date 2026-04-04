@@ -787,6 +787,50 @@
             opacity: 0.6;
         }
 
+        /* ── SOURCES ── */
+        .msg-sources {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+        .msg-sources-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .msg-sources-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .msg-source-link {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12.5px;
+            color: var(--accent);
+            text-decoration: none;
+            padding: 5px 9px;
+            border-radius: 8px;
+            background: rgba(99,102,241,0.07);
+            border: 1px solid rgba(99,102,241,0.15);
+            transition: all 0.15s ease;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .msg-source-link:hover {
+            background: rgba(99,102,241,0.15);
+            border-color: var(--accent);
+        }
+        .msg-source-link i { flex-shrink: 0; font-size: 11px; }
+
         /* ── MOBILE ── */
         .sidebar-overlay {
             display: none;
@@ -1168,7 +1212,7 @@
                 const res = await fetch(`/chat/${SESSION_ID}`, { method: 'POST', body: fd });
                 const data = await res.json();
                 showTyping(false);
-                if (data.success) addMessage(data.response, 'bot', data.image_url || null, data.file_ready || null);
+                if (data.success) addMessage(data.response, 'bot', data.image_url || null, data.file_ready || null, data.sources || []);
                 else addMessage(`Désolé, une erreur est survenue. Veuillez réessayer.`, 'bot');
             } catch (err) {
                 showTyping(false);
@@ -1177,7 +1221,7 @@
         });
 
         // ── ADD MESSAGE ──
-        function addMessage(text, role, imageUrl = null, fileReady = null) {
+        function addMessage(text, role, imageUrl = null, fileReady = null, sources = []) {
             const wrap = document.createElement('div');
             wrap.className = `message ${role}`;
 
@@ -1253,6 +1297,30 @@
                 copyBtn.onclick = function() { copyText(this, text); };
                 copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copier';
                 actions.appendChild(copyBtn);
+            }
+
+            // ── Sources ──
+            if (role === 'bot' && sources && sources.length > 0) {
+                const srcDiv = document.createElement('div');
+                srcDiv.className = 'msg-sources';
+                const label = document.createElement('div');
+                label.className = 'msg-sources-label';
+                label.innerHTML = '<i class="fas fa-link"></i> Sources';
+                srcDiv.appendChild(label);
+                const list = document.createElement('div');
+                list.className = 'msg-sources-list';
+                sources.forEach(src => {
+                    const a = document.createElement('a');
+                    a.className = 'msg-source-link';
+                    a.href = src.url;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    a.innerHTML = `<i class="fas fa-arrow-up-right-from-square"></i> ${src.title}`;
+                    a.title = src.url;
+                    list.appendChild(a);
+                });
+                srcDiv.appendChild(list);
+                bubble.appendChild(srcDiv);
             }
 
             body.appendChild(sender);

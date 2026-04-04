@@ -70,6 +70,7 @@ def chat(session_id):
         response_text = ""
         message_type = "texte"
         question = message
+        sources = []  # liste de {title, url} à afficher sous la réponse
         
         # Récupérer l'historique de conversation
         conversation_history = get_conversation_history(session_id, 6)
@@ -99,7 +100,7 @@ def chat(session_id):
                         prompt = f"Analyse ce document PDF:\n\n{pdf_text}"
                         if message:
                             prompt += f"\n\nQuestion spécifique: {message}"
-                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        response_text, _ = get_gpt_response(prompt, max_tokens=1500, use_search=False, conversation_history=conversation_history)
                         question = f"PDF: {filename}" + (f" + Question: {message}" if message else "")
                     else:
                         response_text = pdf_text
@@ -111,7 +112,7 @@ def chat(session_id):
                         prompt = f"Réponds à cette transcription audio: {transcription}"
                         if message:
                             prompt += f"\n\nContext/Question: {message}"
-                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        response_text, _ = get_gpt_response(prompt, max_tokens=1500, use_search=False, conversation_history=conversation_history)
                         question = f"Audio: {filename}" + (f" + Question: {message}" if message else "")
                     else:
                         response_text = transcription
@@ -125,7 +126,7 @@ def chat(session_id):
                         prompt = f"Analyse ce document Word:\n\n{doc_text[:8000]}"
                         if message:
                             prompt += f"\n\nQuestion spécifique: {message}"
-                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        response_text, _ = get_gpt_response(prompt, max_tokens=1500, use_search=False, conversation_history=conversation_history)
                         question = f"Word: {filename}" + (f" + Question: {message}" if message else "")
                     except Exception as e:
                         response_text = f"Impossible de lire le fichier Word: {str(e)}"
@@ -145,7 +146,7 @@ def chat(session_id):
                         prompt = f"Analyse ce fichier Excel:\n\n{sheet_text}"
                         if message:
                             prompt += f"\n\nQuestion spécifique: {message}"
-                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        response_text, _ = get_gpt_response(prompt, max_tokens=1500, use_search=False, conversation_history=conversation_history)
                         question = f"Excel: {filename}" + (f" + Question: {message}" if message else "")
                     except Exception as e:
                         response_text = f"Impossible de lire le fichier Excel: {str(e)}"
@@ -164,7 +165,7 @@ def chat(session_id):
                         prompt = f"Analyse cette présentation PowerPoint:\n\n{pptx_text}"
                         if message:
                             prompt += f"\n\nQuestion spécifique: {message}"
-                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        response_text, _ = get_gpt_response(prompt, max_tokens=1500, use_search=False, conversation_history=conversation_history)
                         question = f"PowerPoint: {filename}" + (f" + Question: {message}" if message else "")
                     except Exception as e:
                         response_text = f"Impossible de lire le fichier PowerPoint: {str(e)}"
@@ -180,12 +181,12 @@ def chat(session_id):
                         prompt = f"Analyse ce fichier CSV:\n\n{csv_text}"
                         if message:
                             prompt += f"\n\nQuestion spécifique: {message}"
-                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        response_text, _ = get_gpt_response(prompt, max_tokens=1500, use_search=False, conversation_history=conversation_history)
                         question = f"CSV: {filename}" + (f" + Question: {message}" if message else "")
                     except Exception as e:
                         response_text = f"Impossible de lire le fichier CSV: {str(e)}"
 
-                elif filename.lower().endswith(('.txt', '.json', '.xml', '.csv')):
+                elif filename.lower().endswith(('.txt', '.json', '.xml')):
                     message_type = "texte"
                     try:
                         with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
@@ -193,7 +194,7 @@ def chat(session_id):
                         prompt = f"Analyse ce fichier texte ({filename}):\n\n{file_text}"
                         if message:
                             prompt += f"\n\nQuestion spécifique: {message}"
-                        response_text = get_gpt_response(prompt, max_tokens=1500, conversation_history=conversation_history)
+                        response_text, _ = get_gpt_response(prompt, max_tokens=1500, use_search=False, conversation_history=conversation_history)
                         question = f"Fichier: {filename}" + (f" + Question: {message}" if message else "")
                     except Exception as e:
                         response_text = f"Impossible de lire le fichier: {str(e)}"
@@ -239,7 +240,7 @@ def chat(session_id):
                         f"Utilise des titres markdown (##), des listes, et un contenu riche. "
                         f"Ne dis pas que tu génères un fichier — fournis directement le contenu."
                     )
-                    raw_response = get_gpt_response(gpt_prompt, max_tokens=3000, use_search=False)
+                    raw_response, _ = get_gpt_response(gpt_prompt, max_tokens=3000, use_search=False)
                     # Extraire le titre de la première ligne
                     import re as _re
                     lines = raw_response.split('\n')
@@ -257,7 +258,7 @@ def chat(session_id):
                         f"__FILE_GENERATED__:{file_type}:{doc_title}\n{doc_content}"
                     )
                 else:
-                    response_text = get_gpt_response(message, max_tokens=1500, conversation_history=conversation_history)
+                    response_text, sources = get_gpt_response(message, max_tokens=1500, conversation_history=conversation_history)
         else:
             response_text = "Veuillez saisir un message ou uploader un fichier."
         
@@ -305,7 +306,8 @@ def chat(session_id):
             'response': response_text,
             'type': message_type,
             'image_url': image_url_out,
-            'file_ready': file_token_out
+            'file_ready': file_token_out,
+            'sources': sources
         })
         
     except Exception as e:
